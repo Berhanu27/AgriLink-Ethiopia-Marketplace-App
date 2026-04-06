@@ -50,6 +50,7 @@ const translations = {
     toastMismatch: "Passwords do not match",
     toastLength: "Password must be at least 6 characters",
     toastSuccess: "Registration successful!",
+    toastPending: "Registration submitted. Awaiting approval.",
     toastFail: "Registration failed. Please try again.",
     toastError: "An error occurred. Please try again.",
   },
@@ -88,6 +89,7 @@ const translations = {
     toastMismatch: "የይለፍ ቃሎቹ አይመሳሰሉም",
     toastLength: "የይለፍ ቃል ቢያንስ 6 ቁምፊ ይሆን አለበት",
     toastSuccess: "በተሳካ ሁኔታ ተመዝግበዋል!",
+    toastPending: "መመዝገብ ተቀባይነት አግኝቷል። እባክዎ ማረጋገጫን ይጠብቁ።",
     toastFail: "መመዝገብ አልተሳካም። እባክዎ ደግመው ይሞክሩ።",
     toastError: "ስህተት ተፈጥሯል። እባክዎ ደግመው ይሞክሩ።",
   },
@@ -126,6 +128,7 @@ const translations = {
     toastMismatch: "Jecha darbii walsima hin qabu",
     toastLength: "Jecha darbii dheerina 6 ol qabaachuu qaba",
     toastSuccess: "Galmeessi milkaa'e!",
+    toastPending: "Galmeen fudhatame. Mirkaneessaaf eegaa.",
     toastFail: "Galmeessi hin milkoofne. Maaloo irra deebi'i yaali.",
     toastError: "Dogoggorri uumame. Maaloo irra deebi'i yaali.",
   },
@@ -220,7 +223,11 @@ export default function RegisterPage() {
       );
 
       if (success) {
-        toast.success(t.toastSuccess);
+        if (formData.role === "transporter") {
+          toast.success(t.toastPending);
+        } else {
+          toast.success(t.toastSuccess);
+        }
         router.push("/dashboard");
       } else {
         toast.error(t.toastFail);

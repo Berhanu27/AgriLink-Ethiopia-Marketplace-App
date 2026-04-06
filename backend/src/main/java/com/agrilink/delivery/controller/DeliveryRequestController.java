@@ -1,0 +1,64 @@
+package com.agrilink.delivery.controller;
+
+import com.agrilink.delivery.dto.CreateDeliveryRequest;
+import com.agrilink.delivery.dto.DeliveryRequestResponse;
+import com.agrilink.delivery.dto.UpdateDeliveryStatusRequest;
+import com.agrilink.delivery.service.DeliveryRequestService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/delivery-requests")
+public class DeliveryRequestController {
+
+    private final DeliveryRequestService deliveryRequestService;
+
+    public DeliveryRequestController(DeliveryRequestService deliveryRequestService) {
+        this.deliveryRequestService = deliveryRequestService;
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public DeliveryRequestResponse create(@Valid @RequestBody CreateDeliveryRequest request,
+                                          Authentication authentication) {
+        Long buyerId = getUserId(authentication);
+        return deliveryRequestService.create(buyerId, request);
+    }
+
+    @GetMapping("/buyer")
+    public List<DeliveryRequestResponse> listForBuyer(Authentication authentication) {
+        Long buyerId = getUserId(authentication);
+        return deliveryRequestService.getForBuyer(buyerId);
+    }
+
+    @GetMapping("/transporter")
+    public List<DeliveryRequestResponse> listForTransporter(Authentication authentication) {
+        Long transporterId = getUserId(authentication);
+        return deliveryRequestService.getForTransporter(transporterId);
+    }
+
+    @PatchMapping("/{id}/status")
+    public DeliveryRequestResponse updateStatus(@PathVariable Long id,
+                                                @Valid @RequestBody UpdateDeliveryStatusRequest request,
+                                                Authentication authentication) {
+        Long transporterId = getUserId(authentication);
+        return deliveryRequestService.updateStatus(transporterId, id, request);
+    }
+
+    private Long getUserId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+        }
+
+        try {
+            return Long.parseLong(authentication.getName());
+        } catch (NumberFormatException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid user id");
+        }
+    }
+}

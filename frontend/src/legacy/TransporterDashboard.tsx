@@ -107,7 +107,7 @@ const translations = {
 } as const;
 
 export default function TransporterDashboard() {
-  const { currentUser, updateDeliveryStatus, updateTransporterAvailability, language } = useApp();
+  const { currentUser, updateDeliveryStatus, updateTransporterAvailability, language, deliveryRequests } = useApp();
   const t = translations[language] ?? translations.en;
   const [isOnline, setIsOnline] = useState(currentUser?.available ?? true);
 
@@ -116,38 +116,12 @@ export default function TransporterDashboard() {
     setIsOnline(currentUser.available);
   }, [currentUser?.available]);
 
-  // Mock delivery requests
-  const deliveryRequests = [
-    {
-      id: 'dr1',
-      pickupLocation: 'Addis Ababa, Bole',
-      destination: 'Hawassa',
-      cargo: 'Teff - 500kg',
-      weight: '500kg',
-      status: 'pending' as const,
-      requesterId: 'req1',
-      requesterName: 'Abebe Kebede',
-      createdAt: new Date('2026-03-29'),
-      price: 2500,
-    },
-    {
-      id: 'dr2',
-      pickupLocation: 'Mekelle',
-      destination: 'Addis Ababa',
-      cargo: 'Coffee - 200kg',
-      weight: '200kg',
-      status: 'in-transit' as const,
-      requesterId: 'req2',
-      requesterName: 'Tigist Mekonnen',
-      createdAt: new Date('2026-03-28'),
-      price: 1800,
-    },
-  ];
-
   const pendingRequests = deliveryRequests.filter((d) => d.status === 'pending').length;
   const inTransit = deliveryRequests.filter((d) => d.status === 'in-transit').length;
-  const completed = 12; // Mock completed deliveries
-  const totalEarnings = 45000; // Mock earnings
+  const completed = deliveryRequests.filter((d) => d.status === 'delivered').length;
+  const totalEarnings = deliveryRequests
+    .filter((d) => d.status === 'delivered')
+    .reduce((sum, d) => sum + (d.priceOffer ?? 0), 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -268,7 +242,7 @@ export default function TransporterDashboard() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-semibold">{request.cargo}</h4>
+                          <h4 className="font-semibold">{request.cargoType}</h4>
                           <Badge
                             variant="outline"
                             className={`${getStatusColor(request.status)} text-xs capitalize`}
@@ -278,11 +252,11 @@ export default function TransporterDashboard() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mb-1">
-                          {t.requestedBy} {request.requesterName}
+                          {t.requestedBy} {request.requesterName || t.notSet}
                         </p>
                       </div>
                       <span className="text-lg font-bold text-primary">
-                        {request.price} ETB
+                        {request.priceOffer?.toLocaleString() ?? "—"} ETB
                       </span>
                     </div>
 
@@ -306,7 +280,9 @@ export default function TransporterDashboard() {
                         <Package className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <p className="text-xs text-muted-foreground">{t.weight}</p>
-                          <p className="text-sm font-medium">{request.weight}</p>
+                          <p className="text-sm font-medium">
+                            {request.weightValue ? `${request.weightValue}${request.weightUnit || ''}` : t.notSet}
+                          </p>
                         </div>
                       </div>
                     </div>

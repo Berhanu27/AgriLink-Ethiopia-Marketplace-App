@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Transactional
@@ -73,9 +74,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse updateVerificationStatus(Long userId, String verificationStatus) {
+        Long safeUserId = Objects.requireNonNull(userId, "userId");
         System.out.println("[UserService] Update verification: userId=" + userId + ", status=" + verificationStatus);
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findById(safeUserId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         System.out.println("[UserService] Current status before update: " + user.getVerificationStatus());
@@ -87,7 +89,7 @@ public class UserServiceImpl implements UserService {
         System.out.println("[UserService] Status after save and flush: " + saved.getVerificationStatus());
 
         // Verify it was saved by fetching again
-        User verified = userRepository.findById(userId).orElse(null);
+        User verified = userRepository.findById(safeUserId).orElse(null);
         if (verified != null) {
             System.out.println("[UserService] Verified from DB: " + verified.getVerificationStatus());
         }
@@ -137,7 +139,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserResponse getById(Long userId) {
-        User user = userRepository.findById(userId)
+        Long safeUserId = Objects.requireNonNull(userId, "userId");
+        User user = userRepository.findById(safeUserId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         return new UserResponse(
@@ -160,7 +163,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse updateAvailability(Long userId, boolean available) {
-        User user = userRepository.findById(userId)
+        Long safeUserId = Objects.requireNonNull(userId, "userId");
+        User user = userRepository.findById(safeUserId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         user.setAvailable(available);
@@ -186,7 +190,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void deleteUser(Long userId) {
-        User user = userRepository.findById(userId)
+        Long safeUserId = Objects.requireNonNull(userId, "userId");
+        User user = userRepository.findById(safeUserId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
         System.out.println("[UserService] Deleting user: " + user.getFullName() + " (ID: " + userId + ")");

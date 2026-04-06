@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Transactional
@@ -46,10 +47,12 @@ public class PriceRecordServiceImpl implements PriceRecordService {
 
     @Override
     public PriceRecordResponse create(CreatePriceRecordRequest request) {
-        Crop crop = cropRepository.findById(request.cropId())
-                .orElseThrow(() -> new IllegalArgumentException("Crop not found: " + request.cropId()));
-        Market market = marketRepository.findById(request.marketId())
-                .orElseThrow(() -> new IllegalArgumentException("Market not found: " + request.marketId()));
+        Long cropId = Objects.requireNonNull(request.cropId(), "cropId");
+        Long marketId = Objects.requireNonNull(request.marketId(), "marketId");
+        Crop crop = cropRepository.findById(cropId)
+                .orElseThrow(() -> new IllegalArgumentException("Crop not found: " + cropId));
+        Market market = marketRepository.findById(marketId)
+                .orElseThrow(() -> new IllegalArgumentException("Market not found: " + marketId));
 
         PriceRecord record = new PriceRecord();
         record.setCrop(crop);
@@ -59,6 +62,6 @@ public class PriceRecordServiceImpl implements PriceRecordService {
         record.setAveragePrice(request.averagePrice());
 
         PriceRecord saved = priceRecordRepository.save(record);
-        return new PriceRecordResponse(saved.getId(), crop.getId(), market.getId(), saved.getMinPrice(), saved.getMaxPrice(), saved.getAveragePrice());
+                return new PriceRecordResponse(saved.getId(), crop.getId(), market.getId(), saved.getMinPrice(), saved.getMaxPrice(), saved.getAveragePrice());
     }
 }

@@ -68,14 +68,20 @@ export interface DeliveryRequest {
   id: string;
   pickupLocation: string;
   destination: string;
-  cargo: string;
-  weight: string;
-  status: 'pending' | 'accepted' | 'in-transit' | 'delivered';
+  cargoType: string;
+  weightValue?: number;
+  weightUnit?: string;
+  preferredTime?: string;
+  priceOffer?: number;
+  notes?: string;
+  status: 'pending' | 'accepted' | 'in-transit' | 'delivered' | 'rejected';
+  rejectReason?: string;
   requesterId: string;
-  requesterName: string;
-  transporterId?: string;
+  requesterName?: string;
+  requesterPhone?: string;
+  transporterId: string;
+  transporterName?: string;
   createdAt: Date;
-  price?: number;
 }
 
 export interface Notification {

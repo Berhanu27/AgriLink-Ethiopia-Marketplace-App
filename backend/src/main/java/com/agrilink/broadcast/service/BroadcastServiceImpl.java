@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Transactional
@@ -44,7 +45,8 @@ public class BroadcastServiceImpl implements BroadcastService {
 
     @Override
     public BroadcastResponse update(Long broadcastId, UpdateBroadcastRequest request) {
-        BroadcastMessage message = broadcastRepository.findById(broadcastId)
+        Long safeBroadcastId = Objects.requireNonNull(broadcastId, "broadcastId");
+        BroadcastMessage message = broadcastRepository.findById(safeBroadcastId)
                 .orElseThrow(() -> new IllegalArgumentException("Broadcast not found"));
 
         if (StringUtils.hasText(request.cropName())) {

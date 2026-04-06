@@ -48,6 +48,7 @@ public class SecurityConfig {
                     .requestMatchers("PATCH", "/api/broadcasts/**").authenticated()
                     .requestMatchers("GET", "/api/users/profile").authenticated()
                     .requestMatchers("GET", "/api/users").authenticated()
+                    .requestMatchers("/api/delivery-requests/**").authenticated()
                     .requestMatchers("PATCH", "/api/users/**").authenticated()
                     .requestMatchers("DELETE", "/api/users/**").authenticated()
                     .requestMatchers("POST", "/api/users").permitAll()

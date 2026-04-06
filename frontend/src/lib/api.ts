@@ -329,6 +329,105 @@ export const api = {
         }
       ),
   },
+
+  deliveryRequests: {
+    create: (data: {
+      transporterId: number;
+      pickupLocation: string;
+      destination: string;
+      cargoType: string;
+      weightValue?: number;
+      weightUnit?: string;
+      preferredTime?: string;
+      priceOffer?: number;
+      notes?: string;
+    }) => fetchApi<{
+      id: number;
+      buyerId: number;
+      buyerName?: string;
+      buyerPhone?: string;
+      transporterId: number;
+      transporterName?: string;
+      pickupLocation: string;
+      destination: string;
+      cargoType: string;
+      weightValue?: number;
+      weightUnit?: string;
+      preferredTime?: string;
+      priceOffer?: number;
+      notes?: string;
+      status: string;
+      rejectReason?: string;
+      createdAt: string;
+    }>(`/delivery-requests`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+    listForBuyer: () => fetchApi<Array<{
+      id: number;
+      buyerId: number;
+      buyerName?: string;
+      buyerPhone?: string;
+      transporterId: number;
+      transporterName?: string;
+      pickupLocation: string;
+      destination: string;
+      cargoType: string;
+      weightValue?: number;
+      weightUnit?: string;
+      preferredTime?: string;
+      priceOffer?: number;
+      notes?: string;
+      status: string;
+      rejectReason?: string;
+      createdAt: string;
+    }>>(`/delivery-requests/buyer`),
+
+    listForTransporter: () => fetchApi<Array<{
+      id: number;
+      buyerId: number;
+      buyerName?: string;
+      buyerPhone?: string;
+      transporterId: number;
+      transporterName?: string;
+      pickupLocation: string;
+      destination: string;
+      cargoType: string;
+      weightValue?: number;
+      weightUnit?: string;
+      preferredTime?: string;
+      priceOffer?: number;
+      notes?: string;
+      status: string;
+      rejectReason?: string;
+      createdAt: string;
+    }>>(`/delivery-requests/transporter`),
+
+    updateStatus: (requestId: number, data: { status: string; rejectReason?: string }) =>
+      fetchApi<{
+        id: number;
+        buyerId: number;
+        buyerName?: string;
+        buyerPhone?: string;
+        transporterId: number;
+        transporterName?: string;
+        pickupLocation: string;
+        destination: string;
+        cargoType: string;
+        weightValue?: number;
+        weightUnit?: string;
+        preferredTime?: string;
+        priceOffer?: number;
+        notes?: string;
+        status: string;
+        rejectReason?: string;
+        createdAt: string;
+      }>(`/delivery-requests/${requestId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+  },
 };
 
 export { ApiError };

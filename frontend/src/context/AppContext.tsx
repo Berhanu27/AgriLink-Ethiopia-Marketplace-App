@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useEffect, useSyncExternalStore } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect, useSyncExternalStore, useCallback } from "react";
 import { User, Listing, MarketPrice, Message, DeliveryRequest, Notification, TransporterPublic } from "@/types";
 import { api, ApiError } from "@/lib/api";
 
@@ -30,6 +30,17 @@ interface AppContextType {
   updateListingStatus: (id: string, status: 'active' | 'sold' | 'expired') => void;
   sendMessage: (receiverId: string, content: string, listingId?: string) => void;
   markNotificationAsRead: (id: string) => void;
+  createDeliveryRequest: (payload: {
+    transporterId: string;
+    pickupLocation: string;
+    destination: string;
+    cargoType: string;
+    weightValue?: number;
+    weightUnit?: string;
+    preferredTime?: string;
+    priceOffer?: number;
+    notes?: string;
+  }) => Promise<boolean>;
   updateDeliveryStatus: (id: string, status: DeliveryRequest['status']) => void;
   updateTransporterAvailability: (available: boolean) => Promise<boolean>;
   
@@ -51,6 +62,64 @@ export const useApp = () => {
 };
 
 const mockMarketPrices: MarketPrice[] = [];
+
+type DeliveryRequestRow = {
+  id: number;
+  buyerId: number;
+  buyerName?: string;
+  buyerPhone?: string;
+  transporterId: number;
+  transporterName?: string;
+  pickupLocation: string;
+  destination: string;
+  cargoType: string;
+  weightValue?: number;
+  weightUnit?: string;
+  preferredTime?: string;
+  priceOffer?: number;
+  notes?: string;
+  status: string;
+  rejectReason?: string;
+  createdAt: string;
+};
+
+const normalizeDeliveryStatus = (status?: string): DeliveryRequest['status'] => {
+  switch ((status || '').toLowerCase()) {
+    case 'pending':
+      return 'pending';
+    case 'accepted':
+      return 'accepted';
+    case 'in-transit':
+    case 'in_transit':
+      return 'in-transit';
+    case 'delivered':
+      return 'delivered';
+    case 'rejected':
+      return 'rejected';
+    default:
+      return 'pending';
+  }
+};
+
+const mapDeliveryRequest = (row: DeliveryRequestRow): DeliveryRequest => ({
+  id: String(row.id),
+  pickupLocation: row.pickupLocation,
+  destination: row.destination,
+  cargoType: row.cargoType,
+  weightValue: row.weightValue,
+  weightUnit: row.weightUnit,
+  preferredTime: row.preferredTime,
+  priceOffer: row.priceOffer,
+  notes: row.notes,
+  status: normalizeDeliveryStatus(row.status),
+  rejectReason: row.rejectReason,
+  requesterId: String(row.buyerId),
+  requesterName: row.buyerName,
+  requesterPhone: row.buyerPhone,
+  transporterId: String(row.transporterId),
+  transporterName: row.transporterName,
+  createdAt: new Date(row.createdAt),
+});
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -240,6 +309,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     void loadTransporters();
   }, [isHydrated]);
+
+  const loadDeliveryRequests = useCallback(async () => {
+    if (!isHydrated || !currentUser) {
+      setDeliveryRequests([]);
+      return;
+    }
+
+    try {
+      if (currentUser.role === 'transporter') {
+        const rows = await api.deliveryRequests.listForTransporter();
+        setDeliveryRequests(rows.map(mapDeliveryRequest));
+        return;
+      }
+
+      if (currentUser.role === 'buyer') {
+        const rows = await api.deliveryRequests.listForBuyer();
+        setDeliveryRequests(rows.map(mapDeliveryRequest));
+        return;
+      }
+
+      setDeliveryRequests([]);
+    } catch (error) {
+      console.error('Failed to fetch delivery requests:', error);
+      setDeliveryRequests([]);
+    }
+  }, [isHydrated, currentUser?.id, currentUser?.role]);
+
+  useEffect(() => {
+    void loadDeliveryRequests();
+  }, [loadDeliveryRequests]);
 
   useEffect(() => {
     // Check online status
@@ -433,8 +532,64 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotifications(notifications.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
+  const createDeliveryRequest = async (payload: {
+    transporterId: string;
+    pickupLocation: string;
+    destination: string;
+    cargoType: string;
+    weightValue?: number;
+    weightUnit?: string;
+    preferredTime?: string;
+    priceOffer?: number;
+    notes?: string;
+  }): Promise<boolean> => {
+    if (!currentUser || currentUser.role !== 'buyer') {
+      return false;
+    }
+
+    const transporterId = Number(payload.transporterId);
+    if (Number.isNaN(transporterId)) {
+      return false;
+    }
+
+    try {
+      const created = await api.deliveryRequests.create({
+        transporterId,
+        pickupLocation: payload.pickupLocation,
+        destination: payload.destination,
+        cargoType: payload.cargoType,
+        weightValue: payload.weightValue,
+        weightUnit: payload.weightUnit,
+        preferredTime: payload.preferredTime,
+        priceOffer: payload.priceOffer,
+        notes: payload.notes,
+      });
+
+      setDeliveryRequests((prev) => [mapDeliveryRequest(created), ...prev]);
+      return true;
+    } catch (error) {
+      console.error('Failed to create delivery request:', error);
+      return false;
+    }
+  };
+
   const updateDeliveryStatus = (id: string, status: DeliveryRequest['status']) => {
-    setDeliveryRequests(deliveryRequests.map((d) => (d.id === id ? { ...d, status } : d)));
+    setDeliveryRequests((prev) => prev.map((d) => (d.id === id ? { ...d, status } : d)));
+
+    const requestId = Number(id);
+    if (Number.isNaN(requestId)) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        const updated = await api.deliveryRequests.updateStatus(requestId, { status });
+        const mapped = mapDeliveryRequest(updated);
+        setDeliveryRequests((prev) => prev.map((d) => (d.id === id ? mapped : d)));
+      } catch (error) {
+        console.error('Failed to update delivery status:', error);
+      }
+    })();
   };
 
   const updateTransporterAvailability = async (available: boolean): Promise<boolean> => {
@@ -476,6 +631,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateListingStatus,
         sendMessage,
         markNotificationAsRead,
+        createDeliveryRequest,
         updateDeliveryStatus,
         updateTransporterAvailability,
         isOnline,
