@@ -33,9 +33,15 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, logout, notifications, isOnline } = useApp();
+  const { currentUser, logout, notifications, isOnline, language, setLanguage } = useApp();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const languages = [
+    { code: "en" as const, label: "EN" },
+    { code: "am" as const, label: "አማ" },
+    { code: "or" as const, label: "OR" },
+  ];
 
   const handleLogout = () => {
     logout();
@@ -70,6 +76,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span className="hidden sm:inline">Offline</span>
               </div>
             )}
+
+            {/* Language Selector */}
+            <div className="flex items-center gap-1 border border-border rounded-lg p-1">
+              {languages.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => setLanguage(lang.code)}
+                  className={`px-2 py-1 rounded text-xs transition-colors ${
+                    language === lang.code
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
 
             {/* Desktop Menu */}
             <DropdownMenu>

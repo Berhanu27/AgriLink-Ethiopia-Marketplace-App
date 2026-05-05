@@ -7,6 +7,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   Truck,
@@ -17,6 +26,7 @@ import {
   Clock,
   Navigation,
   Phone,
+  XCircle,
 } from "lucide-react";
 
 const translations = {
@@ -36,8 +46,17 @@ const translations = {
     pickup: "Pickup",
     destination: "Destination",
     weight: "Weight",
+    preferredTime: "Preferred Time",
+    notes: "Notes",
     acceptJob: "Accept Job",
+    rejectJob: "Reject",
     markDelivered: "Mark Delivered",
+    rejectDialogTitle: "Reject Delivery Request",
+    rejectDialogDescription: "Please provide a reason for rejecting this request",
+    rejectReason: "Rejection Reason",
+    rejectReasonPlaceholder: "e.g., Vehicle not available, Route not covered, etc.",
+    cancel: "Cancel",
+    confirmReject: "Confirm Reject",
     noRequestsTitle: "No Active Requests",
     noRequestsSubtitle: "New delivery requests will appear here",
     profileTitle: "Your Profile",
@@ -64,8 +83,17 @@ const translations = {
     pickup: "መውሰጃ",
     destination: "መድረሻ",
     weight: "ክብደት",
+    preferredTime: "የተመረጠ ጊዜ",
+    notes: "ማስታወሻዎች",
     acceptJob: "ስራውን ተቀበል",
+    rejectJob: "ውድቅ አድርግ",
     markDelivered: "ተደርሷል አድርግ",
+    rejectDialogTitle: "የማድረሻ ጥያቄን ውድቅ አድርግ",
+    rejectDialogDescription: "እባክዎ ይህን ጥያቄ ለመቃወም ምክንያት ይስጡ",
+    rejectReason: "የውድቅነት ምክንያት",
+    rejectReasonPlaceholder: "ለምሳሌ፣ ተሽከርካሪ አይገኝም፣ መንገድ አልተሸፈነም፣ ወዘተ.",
+    cancel: "ሰርዝ",
+    confirmReject: "ውድቅነትን አረጋግጥ",
     noRequestsTitle: "ንቁ ጥያቄ የለም",
     noRequestsSubtitle: "አዲስ የማድረሻ ጥያቄዎች እዚህ ይታያሉ",
     profileTitle: "የእርስዎ መግለጫ",
@@ -92,8 +120,17 @@ const translations = {
     pickup: "Irraa ka'iinsa",
     destination: "Bakki geessi",
     weight: "Ulfa",
+    preferredTime: "Yeroo filatame",
+    notes: "Yaadannoo",
     acceptJob: "Hojii fudhadhu",
+    rejectJob: "Diddaa",
     markDelivered: "Geessinee xumuri",
+    rejectDialogTitle: "Gaaffii geejjibaa diddaa",
+    rejectDialogDescription: "Maaloo gaaffii kana didduuf sababii kenni",
+    rejectReason: "Sababa diddaa",
+    rejectReasonPlaceholder: "Fakkeenyaaf: Konkolaataan hin argamu, Karaan hin haguugamne, kkf.",
+    cancel: "Haqii",
+    confirmReject: "Diddaa mirkaneessi",
     noRequestsTitle: "Gaaffiin hin jiru",
     noRequestsSubtitle: "Gaaffiin geejjibaa haaraan as ni mul'ata",
     profileTitle: "Profaayilii kee",
@@ -110,11 +147,27 @@ export default function TransporterDashboard() {
   const { currentUser, updateDeliveryStatus, updateTransporterAvailability, language, deliveryRequests } = useApp();
   const t = translations[language] ?? translations.en;
   const [isOnline, setIsOnline] = useState(currentUser?.available ?? true);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     if (currentUser?.available === undefined) return;
     setIsOnline(currentUser.available);
   }, [currentUser?.available]);
+
+  const formatPreferredTime = (value: string) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    const locale = language === 'am' ? 'am-ET' : language === 'or' ? 'om-ET' : 'en-ET';
+    return new Intl.DateTimeFormat(locale, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(parsed);
+  };
 
   const pendingRequests = deliveryRequests.filter((d) => d.status === 'pending').length;
   const inTransit = deliveryRequests.filter((d) => d.status === 'in-transit').length;
@@ -155,6 +208,26 @@ export default function TransporterDashboard() {
 
   const handleAcceptRequest = (id: string) => {
     updateDeliveryStatus(id, 'accepted');
+  };
+
+  const handleRejectRequest = (id: string) => {
+    setSelectedRequestId(id);
+    setRejectDialogOpen(true);
+  };
+
+  const handleConfirmReject = () => {
+    if (!selectedRequestId) return;
+    
+    if (!rejectReason.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+
+    updateDeliveryStatus(selectedRequestId, 'rejected', rejectReason);
+    setRejectDialogOpen(false);
+    setRejectReason("");
+    setSelectedRequestId(null);
+    toast.success("Request rejected");
   };
 
   const handleCompleteDelivery = (id: string) => {
@@ -285,6 +358,24 @@ export default function TransporterDashboard() {
                           </p>
                         </div>
                       </div>
+                      {request.preferredTime && (
+                        <div className="flex items-start gap-2">
+                          <Clock className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">{t.preferredTime}</p>
+                            <p className="text-sm font-medium">{formatPreferredTime(request.preferredTime)}</p>
+                          </div>
+                        </div>
+                      )}
+                      {request.notes && (
+                        <div className="flex items-start gap-2">
+                          <Package className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">{t.notes}</p>
+                            <p className="text-sm font-medium">{request.notes}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Actions */}
@@ -297,6 +388,14 @@ export default function TransporterDashboard() {
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
                             {t.acceptJob}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            className="flex-1 min-h-[44px]"
+                            onClick={() => handleRejectRequest(request.id)}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            {t.rejectJob}
                           </Button>
                           <Button variant="outline" size="icon" className="h-11 w-11">
                             <Phone className="h-5 w-5" />
@@ -364,6 +463,41 @@ export default function TransporterDashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.rejectDialogTitle}</DialogTitle>
+            <DialogDescription>{t.rejectDialogDescription}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">{t.rejectReason}</label>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder={t.rejectReasonPlaceholder}
+              rows={4}
+              className="resize-none"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRejectDialogOpen(false);
+                setRejectReason("");
+                setSelectedRequestId(null);
+              }}
+            >
+              {t.cancel}
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmReject}>
+              {t.confirmReject}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

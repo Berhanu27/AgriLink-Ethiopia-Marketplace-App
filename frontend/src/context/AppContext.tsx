@@ -41,7 +41,7 @@ interface AppContextType {
     priceOffer?: number;
     notes?: string;
   }) => Promise<boolean>;
-  updateDeliveryStatus: (id: string, status: DeliveryRequest['status']) => void;
+  updateDeliveryStatus: (id: string, status: DeliveryRequest['status'], rejectReason?: string) => void;
   updateTransporterAvailability: (available: boolean) => Promise<boolean>;
   
   // Online status
@@ -121,6 +121,9 @@ const mapDeliveryRequest = (row: DeliveryRequestRow): DeliveryRequest => ({
   createdAt: new Date(row.createdAt),
 });
 
+const isAuthError = (error: unknown): error is ApiError =>
+  error instanceof ApiError && (error.status === 401 || error.status === 403);
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     if (typeof window === 'undefined') {
@@ -128,7 +131,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const savedUser = localStorage.getItem('agrilink_user');
+    const token = localStorage.getItem('agrilink_token');
     if (!savedUser) {
+      return null;
+    }
+
+    // If we have a user but no token, treat the session as logged out.
+    // This commonly happens when older mock sessions were stored or the token was cleared.
+    if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
+      localStorage.removeItem('agrilink_user');
+      localStorage.removeItem('agrilink_token');
       return null;
     }
 
@@ -332,6 +344,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDeliveryRequests([]);
     } catch (error) {
       console.error('Failed to fetch delivery requests:', error);
+      if (isAuthError(error)) {
+        clearSession();
+      }
       setDeliveryRequests([]);
     }
   }, [isHydrated, currentUser?.id, currentUser?.role]);
@@ -364,6 +379,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const response = await api.auth.login(phone, password);
       const { token, userId, fullName, phone: userPhone, roles, verificationStatus } = response;
+      if (!token || token.trim() === '') {
+        console.error('Login failed: backend did not return a token');
+        clearSession();
+        return false;
+      }
       const role = (roles[0] as User['role'] | undefined) ?? 'farmer';
       
       const user: User = {
@@ -416,6 +436,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       
       const { token, userId, fullName, phone: userPhone, roles, verificationStatus } = response;
+      if (!token || token.trim() === '') {
+        console.error('Registration failed: backend did not return a token');
+        clearSession();
+        return false;
+      }
       const role = ((roles[0] as User['role'] | undefined) ?? userData.role) || 'farmer';
       const user: User = {
         id: userId.toString(),
@@ -547,6 +572,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
+    const token = localStorage.getItem('agrilink_token');
+    if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
+      clearSession();
+      return false;
+    }
+
     const transporterId = Number(payload.transporterId);
     if (Number.isNaN(transporterId)) {
       return false;
@@ -569,12 +600,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return true;
     } catch (error) {
       console.error('Failed to create delivery request:', error);
+      if (isAuthError(error)) {
+        clearSession();
+      }
       return false;
     }
   };
 
-  const updateDeliveryStatus = (id: string, status: DeliveryRequest['status']) => {
-    setDeliveryRequests((prev) => prev.map((d) => (d.id === id ? { ...d, status } : d)));
+  const updateDeliveryStatus = (id: string, status: DeliveryRequest['status'], rejectReason?: string) => {
+    setDeliveryRequests((prev) => prev.map((d) => (d.id === id ? { ...d, status, rejectReason } : d)));
 
     const requestId = Number(id);
     if (Number.isNaN(requestId)) {
@@ -583,11 +617,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     void (async () => {
       try {
-        const updated = await api.deliveryRequests.updateStatus(requestId, { status });
+        const updated = await api.deliveryRequests.updateStatus(requestId, { status, rejectReason });
         const mapped = mapDeliveryRequest(updated);
         setDeliveryRequests((prev) => prev.map((d) => (d.id === id ? mapped : d)));
       } catch (error) {
         console.error('Failed to update delivery status:', error);
+        if (isAuthError(error)) {
+          clearSession();
+        }
       }
     })();
   };

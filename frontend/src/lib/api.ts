@@ -17,7 +17,10 @@ async function fetchApi<T>(
   options: ApiRequestOptions = {}
 ): Promise<T> {
   const { silent, ...requestOptions } = options;
-  const token = typeof window !== 'undefined' ? localStorage.getItem('agrilink_token') : null;
+  const rawToken = typeof window !== 'undefined' ? localStorage.getItem('agrilink_token') : null;
+  const token = rawToken && rawToken !== 'null' && rawToken !== 'undefined' && rawToken.trim() !== ''
+    ? rawToken
+    : null;
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -54,12 +57,26 @@ async function fetchApi<T>(
         const errorResponse = response.clone();
         const errorData = await errorResponse.json();
         console.error('Error response body:', errorData);
-        errorMessage = errorData.message || errorData.error || JSON.stringify(errorData);
+        const extracted = errorData.message || errorData.error;
+        errorMessage = (typeof extracted === 'string' && extracted.trim() !== '')
+          ? extracted
+          : JSON.stringify(errorData);
       } catch {
         const text = await response.clone().text();
         console.error('Error response text:', text);
-        errorMessage = text || response.statusText;
+        if (text && text.trim() !== '') {
+          errorMessage = text;
+        } else if (response.statusText) {
+          errorMessage = response.statusText;
+        } else {
+          errorMessage = `Request failed (${response.status})`;
+        }
       }
+
+      if (!errorMessage || errorMessage.trim() === '' || errorMessage === '{}' ) {
+        errorMessage = `Request failed (${response.status})`;
+      }
+
       throw new ApiError(response.status, errorMessage);
     }
 

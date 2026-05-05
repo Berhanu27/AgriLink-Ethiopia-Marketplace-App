@@ -29,6 +29,9 @@ import {
   CheckCircle2,
   Clock,
   Bookmark,
+  Truck,
+  XCircle,
+  Navigation,
 } from "lucide-react";
 
 const translations = {
@@ -75,6 +78,17 @@ const translations = {
     requiredError: "Please fill all required fields.",
     availableTransporters: "Available Transporters",
     selectTransporter: "Select",
+    unverifiedError: "Your account is pending verification. Please wait for approval.",
+    myRequests: "My Delivery Requests",
+    requestStatus: "Status",
+    statusPending: "Pending",
+    statusAccepted: "Accepted",
+    statusRejected: "Rejected",
+    statusInTransit: "In Transit",
+    statusDelivered: "Delivered",
+    rejectionReason: "Rejection Reason",
+    noRequests: "No delivery requests yet",
+    noRequestsSubtitle: "Your delivery requests will appear here",
   },
   am: {
     welcome: "እንኳን ደህና መጡ,",
@@ -119,6 +133,17 @@ const translations = {
     requiredError: "እባክዎ አስፈላጊ መስኮችን ይሙሉ።",
     availableTransporters: "የሚገኙ ትራንስፖርተሮች",
     selectTransporter: "ይምረጡ",
+    unverifiedError: "መለያዎ ማረጋገጫ በመጠባበቅ ላይ ነው። እባክዎ ማረጋገጫን ይጠብቁ।",
+    myRequests: "የእኔ የማድረሻ ጥያቄዎች",
+    requestStatus: "ሁኔታ",
+    statusPending: "በመጠባበቅ ላይ",
+    statusAccepted: "ተቀባይነት አግኝቷል",
+    statusRejected: "ውድቅ ተደርጓል",
+    statusInTransit: "በመጓጓዣ ላይ",
+    statusDelivered: "ተደርሷል",
+    rejectionReason: "የውድቅነት ምክንያት",
+    noRequests: "ገና የማድረሻ ጥያቄ የለም",
+    noRequestsSubtitle: "የማድረሻ ጥያቄዎችዎ እዚህ ይታያሉ",
   },
   or: {
     welcome: "Baga nagaan dhuftan,",
@@ -163,11 +188,22 @@ const translations = {
     requiredError: "Maaloo dirqama ta'an guuti.",
     availableTransporters: "Geesjiboota argaman",
     selectTransporter: "Filadhu",
+    unverifiedError: "Akkaawuntiin kee mirkaneessaaf eegamaa jira. Eeggii mirkaneessaa.",
+    myRequests: "Gaaffilee geejjibaa koo",
+    requestStatus: "Haala",
+    statusPending: "Eeggataa",
+    statusAccepted: "Fudhatame",
+    statusRejected: "Didame",
+    statusInTransit: "Imala keessa",
+    statusDelivered: "Geeffame",
+    rejectionReason: "Sababa diddaa",
+    noRequests: "Gaaffiin geejjibaa hin jiru",
+    noRequestsSubtitle: "Gaaffilee geejjibaa kee as ni mul'atu",
   },
 } as const;
 
 export default function BuyerDashboard() {
-  const { currentUser, listings, marketPrices, transporters, language, createDeliveryRequest } = useApp();
+  const { currentUser, listings, marketPrices, transporters, language, createDeliveryRequest, deliveryRequests } = useApp();
   const t = translations[language] ?? translations.en;
   const [searchQuery, setSearchQuery] = useState('');
   const [savedListings] = useState<string[]>([]);
@@ -188,7 +224,25 @@ export default function BuyerDashboard() {
     setRequestForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const formatPreferredTime = (value: string) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    const locale = language === 'am' ? 'am-ET' : language === 'or' ? 'om-ET' : 'en-ET';
+    return new Intl.DateTimeFormat(locale, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(parsed);
+  };
+
   const handleRequestSubmit = async () => {
+    if (!currentUser?.verified) {
+      toast.error(t.unverifiedError);
+      return;
+    }
+
     if (!requestForm.transporterId || !requestForm.pickupLocation || !requestForm.destination || !requestForm.cargoType) {
       toast.error(t.requiredError);
       return;
@@ -231,6 +285,57 @@ export default function BuyerDashboard() {
       });
     } else {
       toast.error(t.requestError);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-500/10 text-yellow-700 border-yellow-200';
+      case 'accepted':
+        return 'bg-blue-500/10 text-blue-700 border-blue-200';
+      case 'in-transit':
+        return 'bg-purple-500/10 text-purple-700 border-purple-200';
+      case 'delivered':
+        return 'bg-green-500/10 text-green-700 border-green-200';
+      case 'rejected':
+        return 'bg-red-500/10 text-red-700 border-red-200';
+      default:
+        return 'bg-gray-500/10 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return t.statusPending;
+      case 'accepted':
+        return t.statusAccepted;
+      case 'in-transit':
+        return t.statusInTransit;
+      case 'delivered':
+        return t.statusDelivered;
+      case 'rejected':
+        return t.statusRejected;
+      default:
+        return status;
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="h-4 w-4" />;
+      case 'accepted':
+        return <CheckCircle2 className="h-4 w-4" />;
+      case 'in-transit':
+        return <Truck className="h-4 w-4" />;
+      case 'delivered':
+        return <CheckCircle2 className="h-4 w-4" />;
+      case 'rejected':
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <Clock className="h-4 w-4" />;
     }
   };
 
@@ -486,6 +591,102 @@ export default function BuyerDashboard() {
             </Button>
           </div>
         </Card>
+
+        {/* My Delivery Requests */}
+        <div>
+          <h3 className="text-xl font-bold mb-4">{t.myRequests}</h3>
+          {deliveryRequests.length > 0 ? (
+            <div className="space-y-3">
+              {deliveryRequests.map((request) => (
+                <Card key={request.id} className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-semibold">{request.cargoType}</h4>
+                          <Badge
+                            variant="outline"
+                            className={`${getStatusColor(request.status)} text-xs capitalize`}
+                          >
+                            {getStatusIcon(request.status)}
+                            <span className="ml-1">{getStatusLabel(request.status)}</span>
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Transporter: {request.transporterName || 'N/A'}
+                        </p>
+                      </div>
+                      <span className="text-lg font-bold text-primary">
+                        {request.priceOffer?.toLocaleString() ?? "—"} ETB
+                      </span>
+                    </div>
+
+                    {/* Route Info */}
+                    <div className="space-y-2 bg-muted/30 p-3 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground">Pickup</p>
+                          <p className="text-sm font-medium">{request.pickupLocation}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Navigation className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground">Destination</p>
+                          <p className="text-sm font-medium">{request.destination}</p>
+                        </div>
+                      </div>
+                      {request.weightValue && (
+                        <div className="flex items-start gap-2">
+                          <Package className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">Weight</p>
+                            <p className="text-sm font-medium">
+                              {request.weightValue}{request.weightUnit || ''}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {request.preferredTime && (
+                        <div className="flex items-start gap-2">
+                          <Clock className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">Preferred Time</p>
+                            <p className="text-sm font-medium">{formatPreferredTime(request.preferredTime)}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rejection Reason */}
+                    {request.status === 'rejected' && request.rejectReason && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-red-900 mb-1">{t.rejectionReason}:</p>
+                        <p className="text-sm text-red-800">{request.rejectReason}</p>
+                      </div>
+                    )}
+
+                    {/* Contact Button */}
+                    {(request.status === 'accepted' || request.status === 'in-transit') && (
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="icon" className="h-11 w-11">
+                          <Phone className="h-5 w-5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-8 text-center">
+              <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <h4 className="font-semibold mb-2">{t.noRequests}</h4>
+              <p className="text-sm text-muted-foreground">{t.noRequestsSubtitle}</p>
+            </Card>
+          )}
+        </div>
 
         {/* Price Trends */}
         <div>
