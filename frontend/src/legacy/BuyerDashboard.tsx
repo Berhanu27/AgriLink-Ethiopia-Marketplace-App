@@ -435,45 +435,53 @@ export default function BuyerDashboard() {
             <Badge variant="secondary">{transporters.length} available</Badge>
           </div>
           {transporters.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {transporters.map((transporter) => (
-                <Card key={transporter.id} className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="h-12 w-12 flex-shrink-0 rounded-lg border border-border overflow-hidden bg-muted/40">
-                      {transporter.vehicleImageUrl ? (
-                        <img
-                          src={transporter.vehicleImageUrl}
-                          alt={transporter.fullName}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : null}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h4 className="font-semibold">{transporter.fullName}</h4>
-                          <p className="text-sm text-muted-foreground">{transporter.region || 'Region not set'}</p>
-                          <p className="text-sm text-muted-foreground">{transporter.phone}</p>
-                        </div>
-                        <Badge variant="secondary" className="text-xs">Verified</Badge>
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {transporter.vehicleType || 'Vehicle'} · {transporter.vehicleCapacity || 'Capacity not set'}
-                      </p>
-                      <div className="mt-3 flex justify-end">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRequestChange('transporterId', transporter.id)}
-                        >
-                          {t.selectTransporter}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Vehicle</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Phone</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Region</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Vehicle Type</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Capacity</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {transporters.map((transporter) => (
+                      <tr key={transporter.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="h-10 w-14 rounded-md overflow-hidden bg-muted/40 border flex items-center justify-center">
+                            {transporter.vehicleImageUrl ? (
+                              <img src={transporter.vehicleImageUrl} alt={transporter.fullName} className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-semibold">{transporter.fullName}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{transporter.phone}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{transporter.region || '—'}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{transporter.vehicleType || '—'}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{transporter.vehicleCapacity || '—'}</td>
+                        <td className="px-4 py-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            onClick={() => handleRequestChange('transporterId', transporter.id)}
+                          >
+                            {t.selectTransporter}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           ) : (
             <Card className="p-6 text-center">
               <p className="text-sm text-muted-foreground">No verified transporters available yet.</p>

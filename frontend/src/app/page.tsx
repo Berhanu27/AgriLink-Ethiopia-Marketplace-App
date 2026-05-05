@@ -160,7 +160,8 @@ const translations: Record<"en" | "am" | "or", {
 
 export default function Homepage() {
   const { marketPrices, listings, transporters, language, setLanguage, isHydrated } = useApp();
-  const t = translations[language] ?? translations.en;
+  const displayLanguage = isHydrated ? language : 'en';
+  const t = translations[displayLanguage] ?? translations.en;
   const adminListings = listings.filter((listing) => listing.farmerId === "admin");
   const farmerListings = listings.filter((listing) => listing.farmerId !== "admin");
 
@@ -169,9 +170,6 @@ export default function Homepage() {
     { code: "am" as const, label: "አማ" },
     { code: "or" as const, label: "OR" },
   ];
-
-  // Prevent hydration mismatch by showing consistent state until hydrated
-  const displayLanguage = isHydrated ? language : 'en';
 
   const howItWorks = [
     { icon: Sprout, ...t.howItWorks[0] },
@@ -187,8 +185,8 @@ export default function Homepage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="sticky top-0 z-[100] bg-card border-b border-border shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between max-w-screen-xl">
           <div className="flex items-center gap-2">
             <Sprout className="h-8 w-8 text-primary" />
@@ -227,21 +225,46 @@ export default function Homepage() {
         </div>
       </header>
 
-      <section className="bg-gradient-to-b from-primary/5 to-background py-8 md:py-12">
-        <div className="container mx-auto px-4 text-center max-w-screen-xl">
-          <h2 className="text-3xl md:text-4xl font-bold mb-3">{t.heroTitle}</h2>
-          <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">{t.heroSubtitle}</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+      <section className="relative flex-1 min-h-[calc(100vh-64px)] flex overflow-hidden mt-4">
+        {/* Full background image */}
+        <div className="absolute inset-0 overflow-hidden">
+          <img
+            src="/hero.png"
+            alt="AgriLink"
+            className="w-full h-full object-contain object-center hero-image-zoom"
+          />
+          {/* Dark overlay */}
+          <div className="absolute inset-0 bg-black/10" />
+        </div>
+
+        {/* Text & CTA — centered over the image */}
+        <div className="relative z-10 flex flex-col justify-center w-full max-w-2xl mx-auto px-8 pt-16 pb-16 text-white text-center">
+          <Badge className="mb-5 text-sm px-3 py-1 w-fit mx-auto bg-white/20 text-white border-white/30" variant="outline">
+            🌱 Ethiopia&apos;s #1 AgriMarketplace
+          </Badge>
+          <h2 className="text-4xl md:text-6xl font-extrabold mb-5 leading-tight tracking-tight" style={{textShadow: '2px 2px 12px rgba(0,0,0,0.9), 0 0 30px rgba(0,0,0,0.8)'}} suppressHydrationWarning>
+            {t.heroTitle}
+          </h2>
+          <p className="text-lg md:text-xl mb-8 leading-relaxed" style={{textShadow: '1px 1px 8px rgba(0,0,0,0.9)'}} suppressHydrationWarning>
+            {t.heroSubtitle}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
             <Link href="/register">
-              <Button size="lg" className="w-full sm:w-auto min-h-[48px]">
+              <Button size="lg" className="w-full sm:w-auto min-h-[52px] text-base px-8 shadow-lg">
                 {t.ctaPrimary} <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
             <Link href="#market-prices">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto min-h-[48px]">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto min-h-[52px] text-base px-8 bg-white/10 border-white/40 text-white hover:bg-white/20">
                 {t.ctaSecondary}
               </Button>
             </Link>
+          </div>
+          {/* Trust indicators */}
+          <div className="flex flex-wrap gap-4 text-sm text-white justify-center" style={{textShadow: '1px 1px 6px rgba(0,0,0,0.8)'}}>
+            <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4 text-primary" /> Verified Users</span>
+            <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4 text-primary" /> Transparent Pricing</span>
+            <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4 text-primary" /> Direct Contact</span>
           </div>
         </div>
       </section>
@@ -249,6 +272,7 @@ export default function Homepage() {
       <section className="py-8 md:py-12">
         <div className="container mx-auto px-4 max-w-screen-xl">
           <div className="space-y-6">
+            {/* Admin Products Table */}
             <div className="rounded-xl border border-border bg-card/60 p-5">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -257,102 +281,97 @@ export default function Homepage() {
                 </div>
                 <Badge variant="secondary">{adminListings.length} items</Badge>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {adminListings.map((listing) => (
-                  <Card key={listing.id} className="p-2">
-                    <div className="flex gap-2">
-                      <div className="h-20 w-20 flex-shrink-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center overflow-hidden">
-                        {(listing as any).imageUrl ? (
-                          <img 
-                            src={(listing as any).imageUrl} 
-                            alt={listing.cropName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Sprout className="h-10 w-10 text-primary/40" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h4 className="font-semibold text-xs">{listing.cropName}</h4>
-                          {listing.farmerVerified && (
-                            <Badge variant="secondary" className="text-[10px]">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Verified
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs font-bold text-primary">
-                          {listing.pricePerUnit} ETB/{listing.unit}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Image</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Crop</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Quantity</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {adminListings.map((listing) => (
+                      <tr key={listing.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="h-10 w-14 rounded-md overflow-hidden bg-muted flex items-center justify-center">
+                            {(listing as any).imageUrl ? (
+                              <img src={(listing as any).imageUrl} alt={listing.cropName} className="h-full w-full object-cover" />
+                            ) : (
+                              <Sprout className="h-5 w-5 text-primary/40" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-semibold">{listing.cropName}</td>
+                        <td className="px-4 py-3 font-bold text-primary">{listing.pricePerUnit} ETB/{listing.unit}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{listing.quantity} {listing.unit}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={listing.status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">
+                            {listing.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
+            {/* Farmer Products Table */}
             <div className="rounded-xl border border-border bg-card/60 p-5">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-2xl font-bold mb-1">{t.featuredTitle}</h3>
-                  <p className="text-sm text-muted-foreground mb-2">{t.featuredSubtitle}</p>
-                  <h4 className="text-lg font-semibold">Farmer Products</h4>
-                  <p className="text-xs text-muted-foreground">Direct listings from verified farmers</p>
+                  <h3 className="text-lg font-semibold">{t.featuredTitle}</h3>
+                  <p className="text-xs text-muted-foreground">{t.featuredSubtitle}</p>
                 </div>
                 <Badge variant="secondary">{farmerListings.length} items</Badge>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {farmerListings.map((listing) => (
-                  <Card key={listing.id} className="p-2">
-                    <div className="flex gap-2">
-                      <div className="h-20 w-20 flex-shrink-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center overflow-hidden">
-                        {(listing as any).imageUrl ? (
-                          <img 
-                            src={(listing as any).imageUrl} 
-                            alt={listing.cropName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Sprout className="h-10 w-10 text-primary/40" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h4 className="font-semibold text-xs">{listing.cropName}</h4>
-                          {listing.farmerVerified && (
-                            <Badge variant="secondary" className="text-[10px]">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Verified
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-1">
-                          <span className="text-[10px] text-muted-foreground">{listing.farmerName}</span>
-                          <span className="flex items-center gap-1">
-                            <Phone className="h-2.5 w-2.5" />
-                            {listing.farmerPhone || "Phone not provided"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-1">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-2.5 w-2.5" />
-                            Region: {listing.farmerRegion || "Not specified"}
-                          </span>
-                          <span className="text-[10px]">{listing.quantity} {listing.unit}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-muted-foreground">
-                            {listing.farmerSpecificLocation || listing.location || "Not specified"}
-                          </span>
-                          <span className="text-xs font-bold text-primary">
-                            {listing.pricePerUnit} ETB/{listing.unit}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Image</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Crop</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Farmer</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Region</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Quantity</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {farmerListings.map((listing) => (
+                      <tr key={listing.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="h-10 w-14 rounded-md overflow-hidden bg-muted flex items-center justify-center">
+                            {(listing as any).imageUrl ? (
+                              <img src={(listing as any).imageUrl} alt={listing.cropName} className="h-full w-full object-cover" />
+                            ) : (
+                              <Sprout className="h-5 w-5 text-primary/40" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-semibold">{listing.cropName}</td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium">{listing.farmerName}</p>
+                            <p className="text-xs text-muted-foreground">{listing.farmerPhone || '—'}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{listing.farmerRegion || '—'}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{listing.quantity} {listing.unit}</td>
+                        <td className="px-4 py-3 font-bold text-primary">{listing.pricePerUnit} ETB/{listing.unit}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={listing.status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">
+                            {listing.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -389,36 +408,46 @@ export default function Homepage() {
             <Badge variant="secondary">{transporters.length} available</Badge>
           </div>
           {transporters.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {transporters.map((transporter) => (
-                <Card key={transporter.id} className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="h-14 w-14 flex-shrink-0 rounded-lg border border-border overflow-hidden bg-muted/40">
-                      {transporter.vehicleImageUrl ? (
-                        <img
-                          src={transporter.vehicleImageUrl}
-                          alt={transporter.fullName}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : null}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h4 className="font-semibold">{transporter.fullName}</h4>
-                          <p className="text-sm text-muted-foreground">{transporter.region || 'Region not set'}</p>
-                          <p className="text-sm text-muted-foreground">{transporter.phone}</p>
-                        </div>
-                        <Badge variant="secondary" className="text-xs">Verified</Badge>
-                      </div>
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        {transporter.vehicleType || 'Vehicle'} · {transporter.vehicleCapacity || 'Capacity not set'}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Vehicle</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Phone</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Region</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Vehicle Type</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Capacity</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {transporters.map((transporter) => (
+                      <tr key={transporter.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="h-10 w-14 rounded-md overflow-hidden bg-muted/40 border flex items-center justify-center">
+                            {transporter.vehicleImageUrl ? (
+                              <img src={transporter.vehicleImageUrl} alt={transporter.fullName} className="h-full w-full object-cover" />
+                            ) : (
+                              <Truck className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-semibold">{transporter.fullName}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{transporter.phone}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{transporter.region || '—'}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{transporter.vehicleType || '—'}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{transporter.vehicleCapacity || '—'}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="secondary" className="text-xs">Verified</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           ) : (
             <Card className="p-6 text-center">
               <p className="text-sm text-muted-foreground">No verified transporters available yet.</p>

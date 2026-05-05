@@ -402,35 +402,26 @@ export default function AdminDashboard() {
         </div>
 
         {/* Broadcast major crop prices */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-          <Card className="relative overflow-hidden p-6 lg:col-span-1 rounded-2xl border-border bg-card shadow-sm">
-            <div className="relative space-y-1 mb-5">
+        <div className="space-y-4">
+          <Card className="p-5">
+            <div className="mb-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Spotlight</p>
-              <h3 className="text-2xl font-semibold">Post Major Crop Price</h3>
-              <p className="text-sm text-muted-foreground">Share a marquee price with an image banner so all users can see it on their dashboard.</p>
-              <div className="flex flex-wrap gap-2 pt-2">
-                {['High visibility', 'Admin verified', 'Home spotlight'].map((pill) => (
-                  <Badge key={pill} variant="secondary">
-                    {pill}
-                  </Badge>
-                ))}
-              </div>
+              <h3 className="text-lg font-semibold">Post Major Crop Price</h3>
             </div>
-            <form className="relative space-y-4" onSubmit={handlePublishBroadcast}>
-              <div className="space-y-1">
-                <Label htmlFor="cropName">Crop name</Label>
-                <Input
-                  id="cropName"
-                  placeholder="Teff, Maize, Wheat..."
-                  value={broadcastForm.cropName}
-                  onChange={(e) => handleBroadcastChange('cropName', e.target.value)}
-                  className="bg-card"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handlePublishBroadcast}>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-3">
+                <div className="space-y-1 lg:col-span-2">
+                  <Label htmlFor="cropName">Crop name</Label>
+                  <Input
+                    id="cropName"
+                    placeholder="Teff, Maize, Wheat..."
+                    value={broadcastForm.cropName}
+                    onChange={(e) => handleBroadcastChange('cropName', e.target.value)}
+                    required
+                  />
+                </div>
                 <div className="space-y-1">
-                  <Label htmlFor="price">Price</Label>
+                  <Label htmlFor="price">Price (ETB)</Label>
                   <Input
                     id="price"
                     type="number"
@@ -438,73 +429,56 @@ export default function AdminDashboard() {
                     placeholder="85"
                     value={broadcastForm.price}
                     onChange={(e) => handleBroadcastChange('price', e.target.value)}
-                    className="bg-card"
                     required
                   />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="unit">Unit</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="unit"
-                      className="flex-1"
-                      placeholder="kg"
-                      value={broadcastForm.unit}
-                      onChange={(e) => handleBroadcastChange('unit', e.target.value)}
-                    />
-                    <div className="flex gap-1">
-                      {['kg', 'quintal', 'ton'].map((u) => (
-                        <Badge
-                          key={u}
-                          variant={broadcastForm.unit === u ? 'default' : 'outline'}
-                          className="cursor-pointer"
-                          onClick={() => handleBroadcastChange('unit', u)}
-                        >
-                          {u}
-                        </Badge>
-                      ))}
-                    </div>
+                  <div className="flex gap-1">
+                    {['kg', 'quintal', 'ton'].map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => handleBroadcastChange('unit', u)}
+                        className={`px-2 py-1 rounded text-xs border transition-colors ${
+                          broadcastForm.unit === u
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {u}
+                      </button>
+                    ))}
                   </div>
                 </div>
+                <div className="space-y-1 md:col-span-2">
+                  <Label htmlFor="note">Note</Label>
+                  <Input
+                    id="note"
+                    placeholder="Region, quality, etc."
+                    value={broadcastForm.note}
+                    onChange={(e) => handleBroadcastChange('note', e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="note">Details / note</Label>
-                <Textarea
-                  id="note"
-                  placeholder="Region, quality, harvest date, moisture, etc."
-                  value={broadcastForm.note}
-                  onChange={(e) => handleBroadcastChange('note', e.target.value)}
-                  className="min-h-24 bg-card"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="image">Banner image (optional)</Label>
-                <Input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="bg-card"
-                />
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="image" className="text-sm cursor-pointer text-muted-foreground hover:text-foreground">
+                    + Banner image (optional)
+                  </Label>
+                  <Input id="image" type="file" accept="image/*" onChange={handleImageChange} className="w-auto text-xs" />
+                </div>
                 {broadcastForm.imagePreview && (
-                  <div className="mt-2 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                    <img
-                      src={broadcastForm.imagePreview}
-                      alt="Broadcast preview"
-                      className="h-32 w-full object-cover"
-                    />
-                  </div>
+                  <img src={broadcastForm.imagePreview} alt="preview" className="h-10 w-16 object-cover rounded border" />
                 )}
-              </div>
-              <div className="flex gap-2">
-                {editingBroadcastId && (
-                  <Button type="button" variant="outline" className="flex-1" onClick={handleCancelEdit}>
-                    Cancel edit
+                <div className="flex gap-2 ml-auto">
+                  {editingBroadcastId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                  )}
+                  <Button type="submit">
+                    {editingBroadcastId ? 'Update' : 'Publish'}
                   </Button>
-                )}
-                <Button type="submit" className="flex-1">
-                  {editingBroadcastId ? 'Update broadcast' : 'Publish to dashboard'}
-                </Button>
+                </div>
               </div>
             </form>
           </Card>
@@ -518,38 +492,51 @@ export default function AdminDashboard() {
               <Badge variant="secondary">{broadcasts.length} posted</Badge>
             </div>
             {broadcasts.length === 0 ? (
-              <Card className="p-6 text-center border-dashed">
-                <p className="text-sm text-muted-foreground">No broadcasts yet. Post a major crop price to highlight it for everyone.</p>
-              </Card>
+              <div className="py-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
+                No broadcasts yet. Post a major crop price to highlight it for everyone.
+              </div>
             ) : (
-              <div className="space-y-3">
-                {broadcasts.map((item) => (
-                  <Card key={item.id} className="p-4 bg-muted/40">
-                    <div className="flex flex-col md:flex-row gap-4">
-                      {item.imageUrl && (
-                        <img
-                          src={item.imageUrl}
-                          alt={item.cropName}
-                          className="h-32 w-full md:w-44 object-cover rounded-md border shadow-sm"
-                        />
-                      )}
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-semibold text-base">{item.cropName}</h4>
-                          <Badge variant="outline" className="capitalize">{item.unit}</Badge>
-                        </div>
-                        <p className="text-2xl font-bold text-emerald-700">{item.price} ETB/{item.unit || 'unit'}</p>
-                        {item.note && <p className="text-sm text-muted-foreground leading-relaxed">{item.note}</p>}
-                        <p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString()}</p>
-                        <div>
-                          <Button size="sm" variant="outline" onClick={() => handleEditBroadcast(item)}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Image</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Crop</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Unit</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Note</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Posted</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {broadcasts.map((item) => (
+                      <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.cropName} className="h-10 w-14 object-cover rounded-md border" />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 font-semibold">{item.cropName}</td>
+                        <td className="px-4 py-3 font-bold text-emerald-700">{item.price} ETB</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className="text-xs">{item.unit}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground max-w-[160px] truncate">{item.note || '—'}</td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
+                          {new Date(item.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => handleEditBroadcast(item)}>
                             Edit
                           </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </Card>
@@ -565,262 +552,239 @@ export default function AdminDashboard() {
           </TabsList>
 
           {/* Verification Queue */}
-          <TabsContent value="verifications" className="space-y-3 mt-4">
-            <div className="flex items-center justify-between">
+          <TabsContent value="verifications" className="mt-4">
+            <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold">Pending Verifications</h3>
               <Badge variant="secondary">{verificationQueue.length} pending</Badge>
             </div>
-
             {loading ? (
-              <Card className="p-8 text-center">
-                <p className="text-muted-foreground">Loading users...</p>
-              </Card>
+              <Card className="p-8 text-center"><p className="text-muted-foreground">Loading...</p></Card>
             ) : verificationQueue.length > 0 ? (
-              verificationQueue.map((user) => (
-                <Card key={user.id} className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          {getRoleIcon(user.role)}
-                          <h4 className="font-semibold">{user.name}</h4>
-                        </div>
-                        <p className="text-sm text-muted-foreground capitalize mb-1">
-                          {user.role} • {user.region}
-                        </p>
-                        <p className="text-sm text-muted-foreground capitalize mb-1">
-                          Status: {user.verificationStatus}
-                        </p>
-                        <p className="text-sm text-muted-foreground break-all">{user.phone}</p>
-                        {user.email && (
-                          <p className="text-sm text-muted-foreground break-all">{user.email}</p>
-                        )}
-                        {user.nationalId && (
-                          <p className="text-sm text-muted-foreground break-all">National ID: {user.nationalId}</p>
-                        )}
-                        {user.cooperativeName && (
-                          <p className="text-sm text-muted-foreground break-all">Cooperative: {user.cooperativeName}</p>
-                        )}
-                        {user.memberCount !== undefined && user.memberCount !== null && (
-                          <p className="text-sm text-muted-foreground break-all">Members: {user.memberCount}</p>
-                        )}
-                        {user.vehicleType && (
-                          <p className="text-sm text-muted-foreground break-all">Vehicle: {user.vehicleType}</p>
-                        )}
-                        {user.vehicleCapacity && (
-                          <p className="text-sm text-muted-foreground break-all">Capacity: {user.vehicleCapacity}</p>
-                        )}
-                        {user.roles?.length ? (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {user.roles.map((r) => (
-                              <Badge key={r} variant="outline" className="text-xs capitalize">
-                                {r}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                      <Badge variant="outline" className="text-xs whitespace-nowrap">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {Math.floor(
-                          (now - user.submittedAt.getTime()) / (1000 * 60 * 60 * 24)
-                        )}{' '}
-                        days
-                      </Badge>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Button className="flex-1 min-h-[44px]" onClick={() => handleApprove(user.id)}>
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="flex-1 min-h-[44px]"
-                        onClick={() => handleReject(user.id)}
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Reject
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 border-b">
+                      <tr>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Role</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Region</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Phone</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">National ID</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {verificationQueue.map((user) => (
+                        <tr key={user.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3 font-medium">{user.name}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant="outline" className="capitalize text-xs">{user.role}</Badge>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{user.region}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{user.phone}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{user.nationalId || '—'}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              <Button size="sm" className="h-8" onClick={() => handleApprove(user.id)}>
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> Approve
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-8" onClick={() => handleReject(user.id)}>
+                                <XCircle className="h-3 w-3 mr-1" /> Reject
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
             ) : (
               <Card className="p-8 text-center">
                 <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
                 <h4 className="font-semibold mb-2">All Users Verified</h4>
-                <p className="text-sm text-muted-foreground">
-                  No pending verification requests
-                </p>
+                <p className="text-sm text-muted-foreground">No pending verification requests</p>
               </Card>
             )}
           </TabsContent>
 
           {/* Users Management */}
-          <TabsContent value="users" className="space-y-3 mt-4">
-            <div className="flex items-center justify-between">
+          <TabsContent value="users" className="mt-4">
+            <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold">All Users</h3>
               <Badge variant="secondary">{users.length} total</Badge>
             </div>
-
             {loading ? (
-              <Card className="p-8 text-center">
-                <p className="text-muted-foreground">Loading users...</p>
-              </Card>
+              <Card className="p-8 text-center"><p className="text-muted-foreground">Loading...</p></Card>
             ) : users.length > 0 ? (
-              <div className="space-y-3">
-                {users.map((user) => (
-                  <Card key={user.id} className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            {getRoleIcon(user.roles[0] || 'user')}
-                            <h4 className="font-semibold">{user.fullName}</h4>
-                          </div>
-                          <p className="text-sm text-muted-foreground capitalize mb-1">
-                            {user.roles.join(', ')} • {user.region || 'N/A'}
-                          </p>
-                          <p className="text-sm text-muted-foreground break-all">{user.phone}</p>
-                          {user.email && (
-                            <p className="text-sm text-muted-foreground break-all">{user.email}</p>
-                          )}
-                          {user.nationalId && (
-                            <p className="text-sm text-muted-foreground break-all">National ID: {user.nationalId}</p>
-                          )}
-                          {user.cooperativeName && (
-                            <p className="text-sm text-muted-foreground break-all">Cooperative: {user.cooperativeName}</p>
-                          )}
-                          {user.memberCount !== undefined && user.memberCount !== null && (
-                            <p className="text-sm text-muted-foreground break-all">Members: {user.memberCount}</p>
-                          )}
-                          {user.vehicleType && (
-                            <p className="text-sm text-muted-foreground break-all">Vehicle: {user.vehicleType}</p>
-                          )}
-                          {user.vehicleCapacity && (
-                            <p className="text-sm text-muted-foreground break-all">Capacity: {user.vehicleCapacity}</p>
-                          )}
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <Badge variant="outline" className="text-xs capitalize">
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 border-b">
+                      <tr>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Role</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Region</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Phone</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {users.map((user) => (
+                        <tr key={user.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3 font-medium">{user.fullName}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant="outline" className="capitalize text-xs">{user.roles[0] || '—'}</Badge>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{user.region || '—'}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{user.phone}</td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant={user.verificationStatus === 'verified' ? 'default' : 'secondary'}
+                              className="capitalize text-xs"
+                            >
                               {user.verificationStatus}
                             </Badge>
-                            {user.roles.map((r) => (
-                              <Badge key={r} variant="outline" className="text-xs capitalize">
-                                {r}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleApprove(user.id.toString())}
-                          disabled={user.verificationStatus === 'verified'}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Verify
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => {
-                            if (confirm(`Delete user ${user.fullName}? This action cannot be undone.`)) {
-                              handleDeleteUser(user.id.toString());
-                            }
-                          }}
-                        >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                disabled={user.verificationStatus === 'verified'}
+                                onClick={() => handleApprove(user.id.toString())}
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> Verify
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-8"
+                                onClick={() => {
+                                  if (confirm(`Delete ${user.fullName}?`)) handleDeleteUser(user.id.toString());
+                                }}
+                              >
+                                <XCircle className="h-3 w-3 mr-1" /> Delete
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
             ) : (
               <Card className="p-8 text-center">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                 <h4 className="font-semibold mb-2">No Users</h4>
-                <p className="text-sm text-muted-foreground">
-                  No users registered yet
-                </p>
               </Card>
             )}
           </TabsContent>
-          <TabsContent value="listings" className="space-y-3 mt-4">
-            <div className="relative">
+
+          {/* Listings */}
+          <TabsContent value="listings" className="mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">All Listings</h3>
+              <Badge variant="secondary">{backendListings.length || listings.length} total</Badge>
+            </div>
+            <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                type="text"
                 placeholder="Search listings..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 min-h-[44px]"
+                className="pl-10"
               />
             </div>
-
-            {(backendListings.length ? backendListings.slice(0, 5) : listings.slice(0, 5)).map((listing) => (
-              <Card key={`listing-${listing.id}`} className="p-4">
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      {isFrontendListing(listing) ? (
-                        <>
-                          <h4 className="font-semibold mb-1 break-words">{listing.cropName}</h4>
-                          <p className="text-sm text-muted-foreground mb-1 break-words">
-                            By {listing.farmerName} • {listing.farmerRegion}
-                          </p>
-                          <p className="text-sm break-words">
-                            {listing.quantity} {listing.unit} @ {listing.pricePerUnit} ETB/{listing.unit}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <h4 className="font-semibold mb-1 break-words">Listing #{listing.id}</h4>
-                          <p className="text-sm text-muted-foreground mb-1 break-words">
-                            Seller ID: {listing.sellerId} • Crop ID: {listing.cropId}
-                          </p>
-                          <p className="text-sm break-words">Asking price: {listing.askingPrice} ETB</p>
-                        </>
-                      )}
-                    </div>
-                    {isFrontendListing(listing) ? (
-                      <Badge
-                        variant={listing.status === 'active' ? 'default' : 'secondary'}
-                        className="capitalize whitespace-nowrap"
-                      >
-                        {listing.status}
-                      </Badge>
-                    ) : null}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      View Details
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
-                      Contact Farmer
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">#</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Crop</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Farmer</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Region</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {(backendListings.length ? backendListings : listings)
+                      .filter((l) => {
+                        if (!searchQuery) return true;
+                        if (isFrontendListing(l)) return l.cropName.toLowerCase().includes(searchQuery.toLowerCase());
+                        return String(l.id).includes(searchQuery);
+                      })
+                      .slice(0, 20)
+                      .map((listing) => (
+                        <tr key={listing.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3 text-muted-foreground">{listing.id}</td>
+                          <td className="px-4 py-3 font-medium">
+                            {isFrontendListing(listing) ? listing.cropName : `Crop #${listing.cropId}`}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {isFrontendListing(listing) ? listing.farmerName : `Seller #${listing.sellerId}`}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {isFrontendListing(listing) ? listing.farmerRegion : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {isFrontendListing(listing)
+                              ? `${listing.pricePerUnit} ETB/${listing.unit}`
+                              : `${listing.askingPrice} ETB`}
+                          </td>
+                          <td className="px-4 py-3">
+                            {isFrontendListing(listing) ? (
+                              <Badge variant={listing.status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">
+                                {listing.status}
+                              </Badge>
+                            ) : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Button size="sm" variant="outline" className="h-8">View</Button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           </TabsContent>
 
           {/* Disputes */}
-          <TabsContent value="disputes" className="space-y-3 mt-4">
-            <Card className="p-8 text-center">
-              <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
-              <h4 className="font-semibold mb-2">No Active Disputes</h4>
-              <p className="text-sm text-muted-foreground">
-                All disputes have been resolved
-              </p>
+          <TabsContent value="disputes" className="mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">Disputes</h3>
+              <Badge variant="secondary">0 open</Badge>
+            </div>
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">#</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Raised By</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Against</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Reason</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                        <CheckCircle2 className="h-10 w-10 text-green-600 mx-auto mb-2" />
+                        No active disputes
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </Card>
           </TabsContent>
         </Tabs>
