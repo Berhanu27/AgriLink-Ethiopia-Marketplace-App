@@ -66,7 +66,7 @@ public class BroadcastServiceImpl implements BroadcastService {
         }
 
         BroadcastMessage saved = broadcastRepository.save(message);
-        return toResponse(saved);
+        return toResponse(Objects.requireNonNull(saved, "Failed to save broadcast message"));
     }
 
     private BroadcastResponse toResponse(BroadcastMessage msg) {

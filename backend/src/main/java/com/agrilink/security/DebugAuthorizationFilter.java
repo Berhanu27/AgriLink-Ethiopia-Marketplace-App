@@ -25,13 +25,15 @@ public class DebugAuthorizationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
         
-        if (path.contains("/api/users")) {
+        if (path.contains("/api/users") || path.contains("/api/delivery-requests")) {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             logger.info("DebugAuthorizationFilter - {} {} - Auth: {}", method, path, auth);
             if (auth != null) {
                 logger.info("  Principal: {}", auth.getPrincipal());
                 logger.info("  Authorities: {}", auth.getAuthorities());
                 logger.info("  Authenticated: {}", auth.isAuthenticated());
+            } else {
+                logger.warn("  Authentication is NULL!");
             }
         }
         

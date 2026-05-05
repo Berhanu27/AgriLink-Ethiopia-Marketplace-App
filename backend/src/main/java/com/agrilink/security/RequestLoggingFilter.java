@@ -23,7 +23,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
         
-        if (request.getRequestURI().contains("/api/users") && request.getMethod().equals("PATCH")) {
+        if ((request.getRequestURI().contains("/api/users") || request.getRequestURI().contains("/api/delivery-requests")) && request.getMethod().equals("PATCH")) {
             ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request);
             
             try {
@@ -37,6 +37,10 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
                     logger.info("Content-Length: {}", wrappedRequest.getContentLength());
                 }
             }
+        } else if (request.getRequestURI().contains("/api/delivery-requests")) {
+            logger.info("DeliveryRequest {} {}", request.getMethod(), request.getRequestURI());
+            logger.info("Authorization header: {}", request.getHeader("Authorization"));
+            filterChain.doFilter(request, response);
         } else {
             filterChain.doFilter(request, response);
         }

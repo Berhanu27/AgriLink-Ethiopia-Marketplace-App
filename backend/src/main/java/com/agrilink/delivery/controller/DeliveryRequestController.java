@@ -26,6 +26,13 @@ public class DeliveryRequestController {
     @ResponseStatus(HttpStatus.CREATED)
     public DeliveryRequestResponse create(@Valid @RequestBody CreateDeliveryRequest request,
                                           Authentication authentication) {
+        System.out.println("=== DeliveryRequestController.create() ===");
+        System.out.println("Authentication: " + authentication);
+        if (authentication != null) {
+            System.out.println("  Principal: " + authentication.getPrincipal());
+            System.out.println("  Authenticated: " + authentication.isAuthenticated());
+            System.out.println("  Authorities: " + authentication.getAuthorities());
+        }
         Long buyerId = getUserId(authentication);
         return deliveryRequestService.create(buyerId, request);
     }
