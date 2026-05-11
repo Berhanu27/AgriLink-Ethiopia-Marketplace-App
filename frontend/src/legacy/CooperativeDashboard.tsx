@@ -1,11 +1,17 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import OrderChatDialog from "@/components/OrderChatDialog";
 import {
   Users,
   Plus,
@@ -15,7 +21,12 @@ import {
   UserPlus,
   BarChart3,
   DollarSign,
+  Edit,
+  Trash2,
+  ShoppingCart,
+  MessageSquare,
 } from 'lucide-react';
+import { api, ApiError } from "@/lib/api";
 
 const translations = {
   en: {
@@ -74,10 +85,104 @@ const translations = {
 export default function CooperativeDashboard() {
   const { currentUser, listings, language } = useApp();
   const t = translations[language] ?? translations.en;
+  
+  const [backendListings, setBackendListings] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingListing, setEditingListing] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({
+    cropName: '',
+    quantity: '',
+    unit: 'kg',
+    pricePerUnit: '',
+    location: '',
+    description: '',
+  });
+  const [chatOrder, setChatOrder] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!currentUser?.id) return;
+      
+      try {
+        const [listingsData, ordersData] = await Promise.all([
+          api.listings.getForSeller(currentUser.id),
+          api.orders.getForSeller(),
+        ]);
+        setBackendListings(listingsData);
+        setOrders(ordersData);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [currentUser?.id]);
+
+  const handleEditClick = (listing: any) => {
+    setEditingListing(listing);
+    setEditForm({
+      cropName: listing.cropName || '',
+      quantity: listing.quantity || '',
+      unit: listing.unit || 'kg',
+      pricePerUnit: listing.askingPrice?.toString() || '',
+      location: listing.location || '',
+      description: listing.description || '',
+    });
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingListing) return;
+
+    try {
+      await api.listings.update(editingListing.id, {
+        cropName: editForm.cropName,
+        quantity: editForm.quantity,
+        unit: editForm.unit,
+        askingPrice: parseFloat(editForm.pricePerUnit),
+        location: editForm.location,
+        description: editForm.description,
+      });
+
+      const updatedListings = await api.listings.getForSeller(currentUser!.id);
+      setBackendListings(updatedListings);
+      setEditingListing(null);
+    } catch (error) {
+      console.error('Failed to update listing:', error);
+      alert('Failed to update listing');
+    }
+  };
+
+  const handleDelete = async (listingId: number) => {
+    if (!confirm('Are you sure you want to delete this listing?')) return;
+
+    try {
+      await api.listings.delete(listingId);
+      const updatedListings = await api.listings.getForSeller(currentUser!.id);
+      setBackendListings(updatedListings);
+    } catch (error) {
+      console.error('Failed to delete listing:', error);
+      alert('Failed to delete listing');
+    }
+  };
+
+  const handleOrderAction = async (orderId: number, status: string) => {
+    try {
+      await api.orders.update(orderId, { status });
+      const updatedOrders = await api.orders.getForSeller();
+      setOrders(updatedOrders);
+    } catch (error) {
+      console.error('Failed to update order:', error);
+      alert('Failed to update order');
+    }
+  };
 
   // Mock data for cooperative
   const memberCount = currentUser?.memberCount || 45;
-  const coopListings = listings.filter((l) => l.farmerId === currentUser?.id);
+  const coopListings = backendListings.length > 0 ? backendListings : listings.filter((l) => l.farmerId === currentUser?.id);
   const activeListings = coopListings.filter((l) => l.status === 'active').length;
   const totalRevenue = 125000; // Mock revenue
   const totalSold = 8; // Mock sold items
@@ -150,7 +255,7 @@ export default function CooperativeDashboard() {
         </div>
 
         {/* Member Contributions */}
-        <div>
+        <div id="top-contributors">
           <h3 className="text-xl font-bold mb-4">{t.topContributors}</h3>
           <Card className="p-4">
             <div className="space-y-3">
@@ -189,38 +294,64 @@ export default function CooperativeDashboard() {
           </div>
 
           {coopListings.length > 0 ? (
-            <div className="space-y-3">
-              {coopListings.map((listing) => (
-                <Card key={listing.id} className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center">
-                      <Package className="h-8 w-8 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <h4 className="font-semibold">{listing.cropName}</h4>
-                        <Badge
-                          variant={listing.status === 'active' ? 'default' : 'secondary'}
-                          className="text-xs capitalize"
-                        >
-                          {listing.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {listing.quantity} {listing.unit} • {listing.location}
-                      </p>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="font-semibold text-primary">
-                          {listing.pricePerUnit} ETB/{listing.unit}
-                        </span>
-                        <span className="text-muted-foreground">{listing.views} views</span>
-                        <span className="text-muted-foreground">{listing.inquiries} inquiries</span>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <Card className="overflow-hidden" id="my-listings">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Crop</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Quantity</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Location</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {coopListings.map((listing) => (
+                      <tr key={listing.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 font-medium">{listing.cropName}</td>
+                        <td className="px-4 py-3">{listing.quantity} {listing.unit}</td>
+                        <td className="px-4 py-3 text-primary font-semibold">
+                          {listing.askingPrice || listing.pricePerUnit} ETB/{listing.unit}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{listing.location}</td>
+                        <td className="px-4 py-3">
+                          <Badge
+                            variant={listing.status === 'active' ? 'default' : 'secondary'}
+                            className="text-xs capitalize"
+                          >
+                            {listing.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8"
+                              onClick={() => handleEditClick(listing)}
+                            >
+                              <Edit className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8"
+                              onClick={() => handleDelete(listing.id)}
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           ) : (
             <Card className="p-8 text-center">
               <Package className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
@@ -284,7 +415,225 @@ export default function CooperativeDashboard() {
             </p>
           </Card>
         </div>
+
+        {/* Purchase Orders Section */}
+        <div id="purchase-orders">
+          <h3 className="text-xl font-bold mb-4">Purchase Orders</h3>
+          {loading ? (
+            <Card className="p-8 text-center">
+              <p className="text-muted-foreground">Loading orders...</p>
+            </Card>
+          ) : orders.length > 0 ? (
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Crop</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Buyer</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Quantity</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Offered Price</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {orders.map((order) => (
+                      <tr key={order.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 font-medium">
+                          <div>
+                            <p>{order.cropName}</p>
+                            {order.paymentScreenshotUrl && (
+                              <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Payment Uploaded
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium">{order.buyerName}</p>
+                            <p className="text-xs text-muted-foreground">{order.buyerPhone}</p>
+                            {order.buyerMessage && (
+                              <p className="text-xs text-muted-foreground mt-1 italic">"{order.buyerMessage}"</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">{order.requestedQuantity} {order.unit}</td>
+                        <td className="px-4 py-3 text-primary font-semibold">
+                          {order.offeredPrice} ETB/{order.unit}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge
+                            variant={
+                              order.status === 'pending' ? 'secondary' :
+                              order.status === 'accepted' ? 'default' :
+                              order.status === 'completed' ? 'default' : 'destructive'
+                            }
+                            className="capitalize text-xs"
+                          >
+                            {order.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2 flex-wrap">
+                            {order.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="h-8"
+                                  onClick={() => handleOrderAction(order.id, 'accepted')}
+                                >
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Accept
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8"
+                                  onClick={() => handleOrderAction(order.id, 'rejected')}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            {order.paymentScreenshotUrl && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                onClick={() => window.open(order.paymentScreenshotUrl, '_blank')}
+                              >
+                                View Payment
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 relative"
+                              onClick={() => setChatOrder(order)}
+                            >
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              Chat
+                              {order.unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
+                                  {order.unreadCount}
+                                </span>
+                              )}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          ) : (
+            <Card className="p-8 text-center">
+              <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <h4 className="font-semibold mb-2">No Purchase Orders</h4>
+              <p className="text-sm text-muted-foreground">
+                Orders from buyers will appear here
+              </p>
+            </Card>
+          )}
+        </div>
       </div>
+
+      {/* Edit Listing Dialog */}
+      <Dialog open={!!editingListing} onOpenChange={() => setEditingListing(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Listing</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="cropName">Crop Name</Label>
+              <Input
+                id="cropName"
+                value={editForm.cropName}
+                onChange={(e) => setEditForm({ ...editForm, cropName: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  value={editForm.quantity}
+                  onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="unit">Unit</Label>
+                <select
+                  id="unit"
+                  value={editForm.unit}
+                  onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                >
+                  <option value="kg">kg</option>
+                  <option value="quintal">quintal</option>
+                  <option value="ton">ton</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="pricePerUnit">Price per Unit (ETB)</Label>
+              <Input
+                id="pricePerUnit"
+                type="number"
+                value={editForm.pricePerUnit}
+                onChange={(e) => setEditForm({ ...editForm, pricePerUnit: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                value={editForm.location}
+                onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" className="flex-1">Save Changes</Button>
+              <Button type="button" variant="outline" onClick={() => setEditingListing(null)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Chat Dialog */}
+      {chatOrder && (
+        <OrderChatDialog
+          open={!!chatOrder}
+          onOpenChange={(open) => !open && setChatOrder(null)}
+          orderId={chatOrder.id}
+          currentUserId={currentUser?.id || 0}
+          orderDetails={{
+            cropName: chatOrder.cropName || '',
+            buyerName: chatOrder.buyerName || 'Buyer',
+            sellerName: currentUser?.cooperativeName || currentUser?.fullName || 'You',
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

@@ -25,6 +25,7 @@ interface AppContextType {
   notifications: Notification[];
   
   // Actions
+  loadListings: () => Promise<void>;
   addListing: (listing: Omit<Listing, 'id' | 'createdAt'>) => Promise<boolean>;
   updateListing: (listingId: string, listing: Partial<Listing>) => Promise<boolean>;
   updateListingStatus: (id: string, status: 'active' | 'sold' | 'expired') => void;
@@ -663,6 +664,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         messages,
         deliveryRequests,
         notifications,
+        loadListings: loadMarketplaceListings,
         addListing,
         updateListing,
         updateListingStatus,

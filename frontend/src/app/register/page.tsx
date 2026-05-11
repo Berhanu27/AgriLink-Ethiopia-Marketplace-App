@@ -346,6 +346,26 @@ export default function RegisterPage() {
             </div>
 
             <div>
+              <Label htmlFor="email">Email Address (Optional)</Label>
+              <div className="relative mt-1">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your-email@example.com"
+                  value={formData.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  className="pl-10 min-h-[48px]"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Receive notifications and updates via email
+              </p>
+            </div>
+
+            <div>
               <Label htmlFor="nationalId">{t.nationalIdLabel}</Label>
               <div className="relative mt-1">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

@@ -79,8 +79,16 @@ export default function SearchPage() {
               filteredListings.map((listing) => (
                 <Card key={listing.id} className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center">
-                      <Package className="h-8 w-8 text-primary" />
+                    <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center overflow-hidden">
+                      {listing.imageUrl ? (
+                        <img 
+                          src={listing.imageUrl} 
+                          alt={listing.cropName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Package className="h-8 w-8 text-primary" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">

@@ -205,6 +205,23 @@ export const api = {
       description?: string;
     }[]>('/listings'),
     
+    getForSeller: (sellerId: number) => fetchApi<Array<{
+      id: number;
+      sellerId: number;
+      sellerName?: string;
+      sellerPhone?: string;
+      sellerRegion?: string;
+      cropId: number;
+      cropName?: string;
+      askingPrice: number;
+      imageUrl?: string;
+      quantity?: string;
+      unit?: string;
+      location?: string;
+      description?: string;
+      status?: string;
+    }>>(`/listings?sellerId=${sellerId}`),
+    
     create: (data: {
       sellerId: number;
       cropId?: number;
@@ -233,6 +250,11 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+
+    delete: (listingId: number) =>
+      fetchApi<void>(`/listings/${listingId}`, {
+        method: 'DELETE',
+      }),
   },
 
   crops: {
@@ -273,6 +295,11 @@ export const api = {
       verificationStatus: string;
       roles: string[];
     }>>("/users", options),
+
+    getPendingCount: async (options?: ApiRequestOptions) => {
+      const response = await fetchApi<{ count: number }>("/users/pending-count", options);
+      return response.count;
+    },
 
     updateVerification: (userId: number, verificationStatus: string) =>
       fetchApi<{ id: number; verificationStatus: string }>(`/users/${userId}/verification`, {
@@ -345,6 +372,11 @@ export const api = {
           body: JSON.stringify(data),
         }
       ),
+
+    delete: (broadcastId: number) =>
+      fetchApi<void>(`/broadcasts/${broadcastId}`, {
+        method: 'DELETE',
+      }),
   },
 
   deliveryRequests: {
@@ -399,6 +431,7 @@ export const api = {
       status: string;
       rejectReason?: string;
       createdAt: string;
+      unreadCount?: number;
     }>>(`/delivery-requests/buyer`),
 
     listForTransporter: () => fetchApi<Array<{
@@ -419,6 +452,7 @@ export const api = {
       status: string;
       rejectReason?: string;
       createdAt: string;
+      unreadCount?: number;
     }>>(`/delivery-requests/transporter`),
 
     updateStatus: (requestId: number, data: { status: string; rejectReason?: string }) =>
@@ -444,6 +478,263 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+
+    // Messaging methods
+    sendMessage: (deliveryRequestId: number, data: { message: string }) =>
+      fetchApi<{
+        id: number;
+        senderId: number;
+        senderName: string;
+        message: string;
+        isRead: boolean;
+        createdAt: string;
+        updatedAt?: string;
+        isEdited?: boolean;
+      }>(`/delivery-requests/${deliveryRequestId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    getMessages: (deliveryRequestId: number) =>
+      fetchApi<Array<{
+        id: number;
+        senderId: number;
+        senderName: string;
+        message: string;
+        isRead: boolean;
+        createdAt: string;
+        updatedAt?: string;
+        isEdited?: boolean;
+      }>>(`/delivery-requests/${deliveryRequestId}/messages`),
+
+    markMessagesAsRead: (deliveryRequestId: number) =>
+      fetchApi<void>(`/delivery-requests/${deliveryRequestId}/messages/mark-read`, {
+        method: 'POST',
+      }),
+
+    updateMessage: (messageId: number, data: { message: string }) =>
+      fetchApi<{
+        id: number;
+        senderId: number;
+        senderName: string;
+        message: string;
+        isRead: boolean;
+        createdAt: string;
+        updatedAt?: string;
+        isEdited?: boolean;
+      }>(`/delivery-requests/messages/${messageId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    deleteMessage: (messageId: number) =>
+      fetchApi<void>(`/delivery-requests/messages/${messageId}`, {
+        method: 'DELETE',
+      }),
+  },
+
+  orders: {
+    create: (data: {
+      sellerId: number;
+      listingId?: number;
+      cropName: string;
+      requestedQuantity: string;
+      unit: string;
+      offeredPrice?: number;
+      buyerMessage?: string;
+    }) => fetchApi<{
+      id: number;
+      buyerId: number;
+      buyerName?: string;
+      buyerPhone?: string;
+      sellerId: number;
+      sellerName?: string;
+      sellerPhone?: string;
+      listingId?: number;
+      cropName: string;
+      requestedQuantity: string;
+      unit: string;
+      offeredPrice?: number;
+      buyerMessage?: string;
+      status: string;
+      farmerResponse?: string;
+      availableQuantity?: string;
+      paymentScreenshotUrl?: string;
+      createdAt: string;
+      updatedAt: string;
+      unreadCount?: number;
+      isNew?: boolean;
+    }>('/orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+    update: (orderId: number, data: {
+      status?: string;
+      farmerResponse?: string;
+      availableQuantity?: string;
+      paymentScreenshotUrl?: string;
+    }) => fetchApi<{
+      id: number;
+      buyerId: number;
+      buyerName?: string;
+      buyerPhone?: string;
+      sellerId: number;
+      sellerName?: string;
+      sellerPhone?: string;
+      listingId?: number;
+      cropName: string;
+      requestedQuantity: string;
+      unit: string;
+      offeredPrice?: number;
+      buyerMessage?: string;
+      status: string;
+      farmerResponse?: string;
+      availableQuantity?: string;
+      paymentScreenshotUrl?: string;
+      createdAt: string;
+      updatedAt: string;
+      unreadCount?: number;
+      isNew?: boolean;
+    }>(`/orders/${orderId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+    getForBuyer: () => fetchApi<Array<{
+      id: number;
+      buyerId: number;
+      buyerName?: string;
+      buyerPhone?: string;
+      sellerId: number;
+      sellerName?: string;
+      sellerPhone?: string;
+      listingId?: number;
+      cropName: string;
+      requestedQuantity: string;
+      unit: string;
+      offeredPrice?: number;
+      buyerMessage?: string;
+      status: string;
+      farmerResponse?: string;
+      availableQuantity?: string;
+      paymentScreenshotUrl?: string;
+      createdAt: string;
+      updatedAt: string;
+      unreadCount?: number;
+      isNew?: boolean;
+    }>>('/orders/buyer'),
+
+    getForSeller: () => fetchApi<Array<{
+      id: number;
+      buyerId: number;
+      buyerName?: string;
+      buyerPhone?: string;
+      sellerId: number;
+      sellerName?: string;
+      sellerPhone?: string;
+      listingId?: number;
+      cropName: string;
+      requestedQuantity: string;
+      unit: string;
+      offeredPrice?: number;
+      buyerMessage?: string;
+      status: string;
+      farmerResponse?: string;
+      availableQuantity?: string;
+      paymentScreenshotUrl?: string;
+      createdAt: string;
+      updatedAt: string;
+      unreadCount?: number;
+      isNew?: boolean;
+    }>>('/orders/seller'),
+
+    getById: (orderId: number) => fetchApi<{
+      id: number;
+      buyerId: number;
+      buyerName?: string;
+      buyerPhone?: string;
+      sellerId: number;
+      sellerName?: string;
+      sellerPhone?: string;
+      listingId?: number;
+      cropName: string;
+      requestedQuantity: string;
+      unit: string;
+      offeredPrice?: number;
+      buyerMessage?: string;
+      status: string;
+      farmerResponse?: string;
+      availableQuantity?: string;
+      paymentScreenshotUrl?: string;
+      createdAt: string;
+      updatedAt: string;
+      unreadCount?: number;
+      isNew?: boolean;
+    }>(`/orders/${orderId}`),
+
+    sendMessage: (orderId: number, data: { message: string }) => fetchApi<{
+      id: number;
+      orderId: number;
+      senderId: number;
+      senderName: string;
+      message: string;
+      createdAt: string;
+      updatedAt?: string;
+      isEdited?: boolean;
+    }>(`/orders/${orderId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+    getMessages: (orderId: number) => fetchApi<Array<{
+      id: number;
+      orderId: number;
+      senderId: number;
+      senderName: string;
+      message: string;
+      createdAt: string;
+      updatedAt?: string;
+      isEdited?: boolean;
+    }>>(`/orders/${orderId}/messages`),
+
+    markMessagesAsRead: (orderId: number) =>
+      fetchApi<void>(`/orders/${orderId}/messages/mark-read`, {
+        method: 'POST',
+      }),
+
+    updateMessage: (messageId: number, data: { message: string }) =>
+      fetchApi<{
+        id: number;
+        orderId: number;
+        senderId: number;
+        senderName: string;
+        message: string;
+        createdAt: string;
+        updatedAt?: string;
+        isEdited?: boolean;
+      }>(`/orders/messages/${messageId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    deleteMessage: (messageId: number) =>
+      fetchApi<void>(`/orders/messages/${messageId}`, {
+        method: 'DELETE',
+      }),
+  },
+  
+  analytics: {
+    getPlatformAnalytics: () => fetchApi<{
+      totalUsers: number;
+      totalOrders: number;
+      totalDeliveries: number;
+      usersByRole: { role: string; count: number }[];
+      verificationStatus: { status: string; count: number }[];
+      ordersByStatus: { status: string; count: number }[];
+      deliveriesByStatus: { status: string; count: number }[];
+      usersByRegion: { region: string; count: number }[];
+    }>('/analytics/platform'),
   },
 };
 

@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import DeliveryChatDialog from "@/components/DeliveryChatDialog";
 import {
   Truck,
   MapPin,
@@ -27,6 +28,7 @@ import {
   Navigation,
   Phone,
   XCircle,
+  MessageSquare,
 } from "lucide-react";
 
 const translations = {
@@ -150,6 +152,8 @@ export default function TransporterDashboard() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [chatDialogOpen, setChatDialogOpen] = useState(false);
+  const [selectedDeliveryRequestId, setSelectedDeliveryRequestId] = useState<number | null>(null);
 
   useEffect(() => {
     if (currentUser?.available === undefined) return;
@@ -272,7 +276,7 @@ export default function TransporterDashboard() {
         </Card>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" id="earnings">
           <Card className="p-4">
             <div className="flex flex-col items-center text-center">
               <Clock className="h-8 w-8 text-yellow-600 mb-2" />
@@ -304,18 +308,65 @@ export default function TransporterDashboard() {
         </div>
 
         {/* Delivery Requests */}
-        <div>
+        <div id="delivery-requests">
           <h3 className="text-xl font-bold mb-4">{t.deliveryRequests}</h3>
           
           {deliveryRequests.length > 0 ? (
-            <div className="space-y-3">
-              {deliveryRequests.map((request) => (
-                <Card key={request.id} className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-semibold">{request.cargoType}</h4>
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cargo</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Route</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Weight</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {deliveryRequests.map((request) => (
+                      <tr key={request.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium">{request.cargoType}</p>
+                            {request.notes && (
+                              <p className="text-xs text-muted-foreground italic mt-1">"{request.notes}"</p>
+                            )}
+                            {request.preferredTime && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                <Clock className="h-3 w-3" />
+                                {formatPreferredTime(request.preferredTime)}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{request.requesterName || t.notSet}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1 text-xs">
+                              <MapPin className="h-3 w-3 text-primary" />
+                              <span className="text-muted-foreground">From:</span>
+                              <span>{request.pickupLocation}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs">
+                              <Navigation className="h-3 w-3 text-primary" />
+                              <span className="text-muted-foreground">To:</span>
+                              <span>{request.destination}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {request.weightValue ? `${request.weightValue}${request.weightUnit || ''}` : t.notSet}
+                        </td>
+                        <td className="px-4 py-3 text-primary font-semibold">
+                          {request.priceOffer?.toLocaleString() ?? "—"} ETB
+                        </td>
+                        <td className="px-4 py-3">
                           <Badge
                             variant="outline"
                             className={`${getStatusColor(request.status)} text-xs capitalize`}
@@ -323,116 +374,208 @@ export default function TransporterDashboard() {
                             {getStatusIcon(request.status)}
                             <span className="ml-1">{request.status}</span>
                           </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          {t.requestedBy} {request.requesterName || t.notSet}
-                        </p>
-                      </div>
-                      <span className="text-lg font-bold text-primary">
-                        {request.priceOffer?.toLocaleString() ?? "—"} ETB
-                      </span>
-                    </div>
-
-                    {/* Route Info */}
-                    <div className="space-y-2 bg-muted/30 p-3 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">{t.pickup}</p>
-                          <p className="text-sm font-medium">{request.pickupLocation}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Navigation className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">{t.destination}</p>
-                          <p className="text-sm font-medium">{request.destination}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Package className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">{t.weight}</p>
-                          <p className="text-sm font-medium">
-                            {request.weightValue ? `${request.weightValue}${request.weightUnit || ''}` : t.notSet}
-                          </p>
-                        </div>
-                      </div>
-                      {request.preferredTime && (
-                        <div className="flex items-start gap-2">
-                          <Clock className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                          <div className="flex-1">
-                            <p className="text-xs text-muted-foreground">{t.preferredTime}</p>
-                            <p className="text-sm font-medium">{formatPreferredTime(request.preferredTime)}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2 flex-wrap">
+                            {request.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="h-8"
+                                  onClick={() => handleAcceptRequest(request.id)}
+                                >
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Accept
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="h-8"
+                                  onClick={() => handleRejectRequest(request.id)}
+                                >
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Reject
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                                  <Phone className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            {(request.status === 'accepted' || request.status === 'in-transit') && (
+                              <>
+                                {request.status === 'in-transit' && (
+                                  <Button
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() => handleCompleteDelivery(request.id)}
+                                  >
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Mark Delivered
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                                  <Phone className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="h-8 relative"
+                                  onClick={() => {
+                                    setSelectedDeliveryRequestId(Number(request.id));
+                                    setChatDialogOpen(true);
+                                  }}
+                                >
+                                  <MessageSquare className="h-3 w-3 mr-1" />
+                                  Chat
+                                  {request.unreadCount && request.unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
+                                      {request.unreadCount}
+                                    </span>
+                                  )}
+                                </Button>
+                              </>
+                            )}
+                            {request.status === 'delivered' && (
+                              <Badge variant="default" className="text-xs">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Completed
+                              </Badge>
+                            )}
                           </div>
-                        </div>
-                      )}
-                      {request.notes && (
-                        <div className="flex items-start gap-2">
-                          <Package className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                          <div className="flex-1">
-                            <p className="text-xs text-muted-foreground">{t.notes}</p>
-                            <p className="text-sm font-medium">{request.notes}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      {request.status === 'pending' && (
-                        <>
-                          <Button
-                            className="flex-1 min-h-[44px]"
-                            onClick={() => handleAcceptRequest(request.id)}
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                            {t.acceptJob}
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            className="flex-1 min-h-[44px]"
-                            onClick={() => handleRejectRequest(request.id)}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            {t.rejectJob}
-                          </Button>
-                          <Button variant="outline" size="icon" className="h-11 w-11">
-                            <Phone className="h-5 w-5" />
-                          </Button>
-                        </>
-                      )}
-                      {request.status === 'in-transit' && (
-                        <>
-                          <Button
-                            className="flex-1 min-h-[44px]"
-                            onClick={() => handleCompleteDelivery(request.id)}
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                            {t.markDelivered}
-                          </Button>
-                          <Button variant="outline" size="icon" className="h-11 w-11">
-                            <Phone className="h-5 w-5" />
-                          </Button>
-                        </>
-                      )}
-                      {request.status === 'delivered' && (
-                        <Button variant="outline" className="flex-1" disabled>
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Completed
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           ) : (
             <Card className="p-8 text-center">
               <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
               <h4 className="font-semibold mb-2">{t.noRequestsTitle}</h4>
               <p className="text-sm text-muted-foreground">
                 {t.noRequestsSubtitle}
+              </p>
+            </Card>
+          )}
+        </div>
+
+        {/* My Routes - Active Deliveries */}
+        <div id="my-routes">
+          <h3 className="text-xl font-bold mb-4">My Routes</h3>
+          
+          {deliveryRequests.filter(d => d.status === 'accepted' || d.status === 'in-transit').length > 0 ? (
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cargo</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Route</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Weight</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {deliveryRequests
+                      .filter(d => d.status === 'accepted' || d.status === 'in-transit')
+                      .map((request) => (
+                        <tr key={request.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="font-medium">{request.cargoType}</p>
+                              {request.notes && (
+                                <p className="text-xs text-muted-foreground italic mt-1">"{request.notes}"</p>
+                              )}
+                              {request.preferredTime && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatPreferredTime(request.preferredTime)}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-medium">{request.requesterName || t.notSet}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1 text-xs">
+                                <MapPin className="h-3 w-3 text-primary" />
+                                <span className="text-muted-foreground">From:</span>
+                                <span>{request.pickupLocation}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-xs">
+                                <Navigation className="h-3 w-3 text-primary" />
+                                <span className="text-muted-foreground">To:</span>
+                                <span>{request.destination}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {request.weightValue ? `${request.weightValue}${request.weightUnit || ''}` : t.notSet}
+                          </td>
+                          <td className="px-4 py-3 text-primary font-semibold">
+                            {request.priceOffer?.toLocaleString() ?? "—"} ETB
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              variant="outline"
+                              className={`${getStatusColor(request.status)} text-xs capitalize`}
+                            >
+                              {getStatusIcon(request.status)}
+                              <span className="ml-1">{request.status}</span>
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2 flex-wrap">
+                              {request.status === 'in-transit' && (
+                                <Button
+                                  size="sm"
+                                  className="h-8"
+                                  onClick={() => handleCompleteDelivery(request.id)}
+                                >
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Mark Delivered
+                                </Button>
+                              )}
+                              <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                                <Phone className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="h-8 relative"
+                                onClick={() => {
+                                  setSelectedDeliveryRequestId(Number(request.id));
+                                  setChatDialogOpen(true);
+                                }}
+                              >
+                                <MessageSquare className="h-3 w-3 mr-1" />
+                                Chat
+                                {request.unreadCount && request.unreadCount > 0 && (
+                                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
+                                    {request.unreadCount}
+                                  </span>
+                                )}
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          ) : (
+            <Card className="p-8 text-center">
+              <Navigation className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <h4 className="font-semibold mb-2">No Active Routes</h4>
+              <p className="text-sm text-muted-foreground">
+                Accepted deliveries will appear here
               </p>
             </Card>
           )}
@@ -498,6 +641,21 @@ export default function TransporterDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delivery Chat Dialog */}
+      {selectedDeliveryRequestId && (
+        <DeliveryChatDialog
+          open={chatDialogOpen}
+          onOpenChange={setChatDialogOpen}
+          deliveryRequestId={selectedDeliveryRequestId}
+          currentUserId={currentUser?.id || 0}
+          deliveryDetails={{
+            cargoType: deliveryRequests.find(r => r.id === String(selectedDeliveryRequestId))?.cargoType || '',
+            buyerName: deliveryRequests.find(r => r.id === String(selectedDeliveryRequestId))?.requesterName || 'Buyer',
+            transporterName: currentUser?.name || 'You',
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

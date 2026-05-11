@@ -2,6 +2,7 @@
 
 import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useApp } from "@/context/AppContext";
+import PlatformAnalytics from "@/components/PlatformAnalytics";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,8 +45,17 @@ interface BackendUser {
 interface BackendListing {
   id: number;
   sellerId: number;
+  sellerName?: string;
+  sellerPhone?: string;
+  sellerRegion?: string;
   cropId: number;
+  cropName?: string;
   askingPrice: number;
+  imageUrl?: string;
+  quantity?: string;
+  unit?: string;
+  location?: string;
+  description?: string;
 }
 
 interface Broadcast {
@@ -157,6 +167,40 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteListing = async (listingId: number) => {
+    if (!confirm('Are you sure you want to delete this listing?')) {
+      return;
+    }
+
+    try {
+      await api.listings.delete(listingId);
+      // Refresh listings
+      const updatedListings = await api.listings.getAll();
+      setBackendListings(updatedListings);
+      setFetchError(null);
+    } catch (error) {
+      console.error('Failed to delete listing:', error);
+      setFetchError('Failed to delete listing. Please try again.');
+    }
+  };
+
+  const handleDeleteBroadcast = async (broadcastId: number) => {
+    if (!confirm('Are you sure you want to delete this broadcast?')) {
+      return;
+    }
+
+    try {
+      await api.broadcasts.delete(broadcastId);
+      // Refresh broadcasts
+      const updatedBroadcasts = await api.broadcasts.getAll();
+      setBroadcasts(updatedBroadcasts);
+      setFetchError(null);
+    } catch (error) {
+      console.error('Failed to delete broadcast:', error);
+      setFetchError('Failed to delete broadcast. Please try again.');
+    }
+  };
+
   const handleBroadcastChange = (field: keyof typeof broadcastForm, value: string) => {
     setBroadcastForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -241,7 +285,8 @@ export default function AdminDashboard() {
   const normalizeRoles = (roles: string[]) => roles.map(r => r.toLowerCase());
 
   const isFrontendListing = (listing: BackendListing | (typeof listings)[number]): listing is (typeof listings)[number] => {
-    return 'cropName' in listing;
+    // Frontend listings have farmerId and farmerName, backend listings have sellerId and sellerName
+    return 'farmerId' in listing && 'farmerName' in listing;
   };
 
   const stats = {
@@ -402,7 +447,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Broadcast major crop prices */}
-        <div className="space-y-4">
+        <div className="space-y-4" id="broadcast-feed">
           <Card className="p-5">
             <div className="mb-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Spotlight</p>
@@ -529,9 +574,19 @@ export default function AdminDashboard() {
                           {new Date(item.createdAt).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3">
-                          <Button size="sm" variant="outline" className="h-8" onClick={() => handleEditBroadcast(item)}>
-                            Edit
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => handleEditBroadcast(item)}>
+                              Edit
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive" 
+                              className="h-8"
+                              onClick={() => handleDeleteBroadcast(item.id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -543,7 +598,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Management Tabs */}
-        <Tabs defaultValue="verifications" className="w-full">
+        <Tabs defaultValue="verifications" className="w-full" id="user-verification">
           <TabsList className="w-full grid grid-cols-4 h-auto">
             <TabsTrigger value="verifications" className="text-xs sm:text-sm">Verifications</TabsTrigger>
             <TabsTrigger value="users" className="text-xs sm:text-sm">Users</TabsTrigger>
@@ -685,7 +740,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           {/* Listings */}
-          <TabsContent value="listings" className="mt-4">
+          <TabsContent value="listings" className="mt-4" id="all-listings">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold">All Listings</h3>
               <Badge variant="secondary">{backendListings.length || listings.length} total</Badge>
@@ -717,39 +772,56 @@ export default function AdminDashboard() {
                     {(backendListings.length ? backendListings : listings)
                       .filter((l) => {
                         if (!searchQuery) return true;
-                        if (isFrontendListing(l)) return l.cropName.toLowerCase().includes(searchQuery.toLowerCase());
-                        return String(l.id).includes(searchQuery);
+                        const cropName = 'cropName' in l && l.cropName ? l.cropName : 
+                                        'cropId' in l ? `Crop #${l.cropId}` : '';
+                        return cropName.toLowerCase().includes(searchQuery.toLowerCase());
                       })
                       .slice(0, 20)
-                      .map((listing) => (
+                      .map((listing) => {
+                        // Determine if this is a backend or frontend listing
+                        const isBackend = 'sellerId' in listing;
+                        const cropName = isBackend 
+                          ? (listing.cropName || `Crop #${listing.cropId}`)
+                          : listing.cropName;
+                        const farmerName = isBackend
+                          ? (listing.sellerName || `Seller #${listing.sellerId}`)
+                          : listing.farmerName;
+                        const region = isBackend
+                          ? (listing.sellerRegion || listing.location || '—')
+                          : listing.farmerRegion;
+                        const price = isBackend
+                          ? `${listing.askingPrice} ETB${listing.unit ? `/${listing.unit}` : ''}`
+                          : `${listing.pricePerUnit} ETB/${listing.unit}`;
+                        const status = isBackend ? 'active' : listing.status;
+                        
+                        return (
                         <tr key={listing.id} className="hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-3 text-muted-foreground">{listing.id}</td>
-                          <td className="px-4 py-3 font-medium">
-                            {isFrontendListing(listing) ? listing.cropName : `Crop #${listing.cropId}`}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {isFrontendListing(listing) ? listing.farmerName : `Seller #${listing.sellerId}`}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {isFrontendListing(listing) ? listing.farmerRegion : '—'}
+                          <td className="px-4 py-3 font-medium">{cropName}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{farmerName}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{region}</td>
+                          <td className="px-4 py-3">{price}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">
+                              {status}
+                            </Badge>
                           </td>
                           <td className="px-4 py-3">
-                            {isFrontendListing(listing)
-                              ? `${listing.pricePerUnit} ETB/${listing.unit}`
-                              : `${listing.askingPrice} ETB`}
-                          </td>
-                          <td className="px-4 py-3">
-                            {isFrontendListing(listing) ? (
-                              <Badge variant={listing.status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">
-                                {listing.status}
-                              </Badge>
-                            ) : '—'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Button size="sm" variant="outline" className="h-8">View</Button>
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="outline" className="h-8">View</Button>
+                              <Button 
+                                size="sm" 
+                                variant="destructive" 
+                                className="h-8"
+                                onClick={() => handleDeleteListing(typeof listing.id === 'number' ? listing.id : parseInt(String(listing.id)))}
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
@@ -789,19 +861,9 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
 
-        {/* Analytics Preview */}
-        <div>
-          <h3 className="text-xl font-bold mb-4">Platform Analytics</h3>
-          <Card className="p-6">
-            <div className="flex flex-col items-center justify-center py-8">
-              <BarChart3 className="h-16 w-16 text-muted-foreground mb-3" />
-              <h4 className="font-semibold mb-2">Analytics Dashboard</h4>
-              <p className="text-sm text-muted-foreground text-center mb-4">
-                View detailed insights on listings per region, match success rates, and more
-              </p>
-              <Button>View Full Analytics</Button>
-            </div>
-          </Card>
+        {/* Analytics */}
+        <div id="platform-analytics">
+          <PlatformAnalytics />
         </div>
       </div>
     </DashboardLayout>

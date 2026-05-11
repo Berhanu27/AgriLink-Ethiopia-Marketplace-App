@@ -1,11 +1,16 @@
 "use client";
 
+import React, { useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import OrderChatDialog from "@/components/OrderChatDialog";
 import {
   Plus,
   Eye,
@@ -17,7 +22,11 @@ import {
   XCircle,
   Users,
   DollarSign,
+  Trash2,
+  ShoppingCart,
+  Phone,
 } from "lucide-react";
+import { api } from "@/lib/api";
 
 const translations = {
   en: {
@@ -39,6 +48,22 @@ const translations = {
     pricesTitle: "Market Prices Today",
     viewAll: "View All",
     connectBuyers: "Connect with Buyers",
+    purchaseOrders: "Purchase Orders",
+    noPurchaseOrders: "No purchase orders yet",
+    noPurchaseOrdersSubtitle: "Orders from buyers will appear here",
+    requestedQty: "Requested",
+    offeredPrice: "Offered Price",
+    buyerMessage: "Buyer Message",
+    respondToOrder: "Respond to Order",
+    availableQty: "Available Quantity",
+    yourResponse: "Your Response",
+    acceptOrder: "Accept Order",
+    rejectOrder: "Reject Order",
+    orderStatus: "Status",
+    statusPending: "Pending",
+    statusAccepted: "Accepted",
+    statusRejected: "Rejected",
+    statusCompleted: "Completed",
   },
   am: {
     welcome: "እንደገና እንኳን በደህና መጡ,",
@@ -83,13 +108,100 @@ const translations = {
 } as const;
 
 export default function FarmerDashboard() {
-  const { currentUser, listings, marketPrices, language } = useApp();
+  const { currentUser, listings, marketPrices, language, loadListings } = useApp();
   const t = translations[language] ?? translations.en;
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [respondingOrderId, setRespondingOrderId] = useState<number | null>(null);
+  const [chatDialogOpen, setChatDialogOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [responseForm, setResponseForm] = useState({
+    availableQuantity: "",
+    farmerResponse: "",
+  });
 
   const myListings = listings.filter((l) => l.farmerId === currentUser?.id);
   const activeListings = myListings.filter((l) => l.status === 'active').length;
   const totalViews = myListings.reduce((sum, l) => sum + l.views, 0);
   const totalInquiries = myListings.reduce((sum, l) => sum + l.inquiries, 0);
+
+  // Fetch purchase orders
+  React.useEffect(() => {
+    const fetchOrders = async () => {
+      if (!currentUser) return;
+      try {
+        const orders = await api.orders.getForSeller();
+        setPurchaseOrders(orders);
+      } catch (error) {
+        console.error('Failed to fetch orders:', error);
+      }
+    };
+    fetchOrders();
+  }, [currentUser]);
+
+  const handleAcceptOrder = async (orderId: number) => {
+    if (!responseForm.availableQuantity) {
+      alert('Please enter available quantity');
+      return;
+    }
+
+    try {
+      await api.orders.update(orderId, {
+        status: 'accepted',
+        availableQuantity: responseForm.availableQuantity,
+        farmerResponse: responseForm.farmerResponse || undefined,
+      });
+
+      // Refresh orders
+      const orders = await api.orders.getForSeller();
+      setPurchaseOrders(orders);
+      setRespondingOrderId(null);
+      setResponseForm({ availableQuantity: "", farmerResponse: "" });
+    } catch (error) {
+      console.error('Failed to accept order:', error);
+      alert('Failed to accept order. Please try again.');
+    }
+  };
+
+  const handleRejectOrder = async (orderId: number) => {
+    if (!confirm('Are you sure you want to reject this order?')) return;
+
+    try {
+      await api.orders.update(orderId, {
+        status: 'rejected',
+        farmerResponse: responseForm.farmerResponse || 'Order rejected',
+      });
+
+      // Refresh orders
+      const orders = await api.orders.getForSeller();
+      setPurchaseOrders(orders);
+      setRespondingOrderId(null);
+      setResponseForm({ availableQuantity: "", farmerResponse: "" });
+    } catch (error) {
+      console.error('Failed to reject order:', error);
+      alert('Failed to reject order. Please try again.');
+    }
+  };
+
+  const handleDeleteListing = async (listingId: string) => {
+    if (!confirm('Are you sure you want to delete this listing?')) {
+      return;
+    }
+
+    setDeletingId(listingId);
+    try {
+      // Extract numeric ID from listing ID (format: "listing-123")
+      const numericId = parseInt(listingId.split('-')[1]);
+      await api.listings.delete(numericId);
+      // Reload listings
+      await loadListings();
+    } catch (error) {
+      console.error('Failed to delete listing:', error);
+      alert('Failed to delete listing. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -206,7 +318,7 @@ export default function FarmerDashboard() {
         </div>
 
         {/* My Listings */}
-        <div>
+        <div id="my-listings">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold">{t.myListings}</h3>
             {currentUser?.verified && (
@@ -224,8 +336,16 @@ export default function FarmerDashboard() {
               {myListings.map((listing) => (
                 <Card key={listing.id} className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center">
-                      <Package className="h-8 w-8 text-primary" />
+                    <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center overflow-hidden">
+                      {listing.imageUrl ? (
+                        <img 
+                          src={listing.imageUrl} 
+                          alt={listing.cropName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Package className="h-8 w-8 text-primary" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
@@ -254,11 +374,21 @@ export default function FarmerDashboard() {
                           {listing.inquiries}
                         </span>
                         {currentUser?.verified && (
-                          <Link href={`/add?edit=${listing.id}`} className="ml-auto">
-                            <Button size="sm" variant="outline">
-                              Edit
+                          <div className="ml-auto flex gap-2">
+                            <Link href={`/add?edit=${listing.id}`}>
+                              <Button size="sm" variant="outline">
+                                Edit
+                              </Button>
+                            </Link>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => handleDeleteListing(listing.id)}
+                              disabled={deletingId === listing.id}
+                            >
+                              <Trash2 className="h-3 w-3" />
                             </Button>
-                          </Link>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -304,8 +434,213 @@ export default function FarmerDashboard() {
           </Card>
         </div>
 
+        {/* Purchase Orders */}
+        <div id="purchase-orders">
+          <div className="flex items-center gap-3 mb-4">
+            <h3 className="text-xl font-bold">{t.purchaseOrders}</h3>
+            {purchaseOrders.filter(o => o.isNew).length > 0 && (
+              <Badge className="bg-red-500 text-white">
+                {purchaseOrders.filter(o => o.isNew).length} New
+              </Badge>
+            )}
+          </div>
+          {purchaseOrders.length > 0 ? (
+            <div className="space-y-3">
+              {purchaseOrders.map((order) => (
+                <Card key={order.id} className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h4 className="font-semibold">{order.cropName}</h4>
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Phone className="h-3 w-3" />
+                        {order.buyerName} • {order.buyerPhone}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={
+                        order.status === 'completed' ? 'default' :
+                        order.status === 'accepted' ? 'secondary' :
+                        order.status === 'rejected' ? 'destructive' :
+                        'outline'
+                      }
+                      className="capitalize"
+                    >
+                      {order.status}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t.requestedQty}</p>
+                      <p className="text-sm font-medium">{order.requestedQuantity} {order.unit}</p>
+                    </div>
+                    {order.offeredPrice && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">{t.offeredPrice}</p>
+                        <p className="text-sm font-medium text-green-600">{order.offeredPrice} ETB/{order.unit}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {order.buyerMessage && (
+                    <div className="bg-muted rounded-lg p-3 mb-3">
+                      <p className="text-xs font-semibold mb-1">{t.buyerMessage}:</p>
+                      <p className="text-sm">{order.buyerMessage}</p>
+                    </div>
+                  )}
+
+                  {order.farmerResponse && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                      <p className="text-xs font-semibold text-green-900 mb-1">{t.yourResponse}:</p>
+                      <p className="text-sm text-green-800">{order.farmerResponse}</p>
+                      {order.availableQuantity && (
+                        <p className="text-sm text-green-800 mt-1">
+                          Available: {order.availableQuantity} {order.unit}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {order.paymentScreenshotUrl && (
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center gap-2 text-sm text-green-600">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Payment proof uploaded by buyer
+                      </div>
+                      <div className="border rounded-lg overflow-hidden">
+                        <img 
+                          src={order.paymentScreenshotUrl} 
+                          alt="Payment Screenshot" 
+                          className="w-full h-auto max-h-96 object-contain bg-gray-50"
+                          onClick={() => window.open(order.paymentScreenshotUrl, '_blank')}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Click image to view full size</p>
+                    </div>
+                  )}
+
+                  {order.status === 'pending' && respondingOrderId !== order.id && (
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="flex-1 relative"
+                        onClick={() => {
+                          setSelectedOrderId(order.id);
+                          setChatDialogOpen(true);
+                        }}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Chat
+                        {order.unreadCount && order.unreadCount > 0 && (
+                          <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-red-500 text-white text-xs">
+                            {order.unreadCount}
+                          </Badge>
+                        )}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => setRespondingOrderId(order.id)}
+                      >
+                        {t.respondToOrder}
+                      </Button>
+                    </div>
+                  )}
+
+                  {(order.status === 'accepted' || order.status === 'completed') && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="w-full relative"
+                      onClick={() => {
+                        setSelectedOrderId(order.id);
+                        setChatDialogOpen(true);
+                      }}
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      View Chat
+                      {order.unreadCount && order.unreadCount > 0 && (
+                        <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-red-500 text-white text-xs">
+                          {order.unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  )}
+
+                  {respondingOrderId === order.id && (
+                    <div className="space-y-3 mt-3 p-3 bg-muted rounded-lg">
+                      <div>
+                        <Label htmlFor={`qty-${order.id}`}>{t.availableQty} *</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id={`qty-${order.id}`}
+                            type="text"
+                            placeholder="Enter available quantity"
+                            value={responseForm.availableQuantity}
+                            onChange={(e) => setResponseForm({ ...responseForm, availableQuantity: e.target.value })}
+                          />
+                          <div className="flex items-center px-3 bg-background rounded-md border">
+                            <span className="text-sm font-medium">{order.unit}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`response-${order.id}`}>{t.yourResponse}</Label>
+                        <Textarea
+                          id={`response-${order.id}`}
+                          placeholder="Add a message to the buyer..."
+                          value={responseForm.farmerResponse}
+                          onChange={(e) => setResponseForm({ ...responseForm, farmerResponse: e.target.value })}
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          className="flex-1"
+                          onClick={() => handleAcceptOrder(order.id)}
+                        >
+                          {t.acceptOrder}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={() => handleRejectOrder(order.id)}
+                        >
+                          {t.rejectOrder}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setRespondingOrderId(null);
+                            setResponseForm({ availableQuantity: "", farmerResponse: "" });
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-8 text-center">
+              <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <h4 className="font-semibold mb-2">{t.noPurchaseOrders}</h4>
+              <p className="text-sm text-muted-foreground">{t.noPurchaseOrdersSubtitle}</p>
+            </Card>
+          )}
+        </div>
+
         {/* Market Prices Today */}
-        <div>
+        <div id="market-prices">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold">{t.pricesTitle}</h3>
             <Link href="/search">
@@ -338,6 +673,21 @@ export default function FarmerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Order Chat Dialog */}
+      {selectedOrderId && (
+        <OrderChatDialog
+          open={chatDialogOpen}
+          onOpenChange={setChatDialogOpen}
+          orderId={selectedOrderId}
+          currentUserId={currentUser?.id || 0}
+          orderDetails={{
+            cropName: purchaseOrders.find(o => o.id === selectedOrderId)?.cropName || '',
+            buyerName: purchaseOrders.find(o => o.id === selectedOrderId)?.buyerName || 'Buyer',
+            sellerName: currentUser?.fullName || 'You',
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import OrderChatDialog from "@/components/OrderChatDialog";
+import DeliveryChatDialog from "@/components/DeliveryChatDialog";
 import {
   Search as SearchIcon,
   Filter,
@@ -32,7 +34,11 @@ import {
   Truck,
   XCircle,
   Navigation,
+  ShoppingCart,
 } from "lucide-react";
+import { PurchaseRequestDialog } from "@/components/PurchaseRequestDialog";
+import { PaymentUploadDialog } from "@/components/PaymentUploadDialog";
+import { api } from "@/lib/api";
 
 const translations = {
   en: {
@@ -89,6 +95,15 @@ const translations = {
     rejectionReason: "Rejection Reason",
     noRequests: "No delivery requests yet",
     noRequestsSubtitle: "Your delivery requests will appear here",
+    myOrders: "My Purchase Orders",
+    orderStatus: "Status",
+    requestedQty: "Requested",
+    availableQty: "Available",
+    farmerResponse: "Farmer Response",
+    noOrders: "No purchase orders yet",
+    noOrdersSubtitle: "Your purchase requests will appear here",
+    uploadPayment: "Upload Payment",
+    paymentUploaded: "Payment Proof Uploaded",
   },
   am: {
     welcome: "እንኳን ደህና መጡ,",
@@ -208,6 +223,14 @@ export default function BuyerDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [savedListings] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
+  const [selectedListing, setSelectedListing] = useState<any>(null);
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [chatDialogOpen, setChatDialogOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [deliveryChatDialogOpen, setDeliveryChatDialogOpen] = useState(false);
+  const [selectedDeliveryRequestId, setSelectedDeliveryRequestId] = useState<number | null>(null);
   const [requestForm, setRequestForm] = useState({
     transporterId: '',
     pickupLocation: '',
@@ -219,6 +242,38 @@ export default function BuyerDashboard() {
     preferredTime: '',
     notes: '',
   });
+
+  // Fetch purchase orders
+  React.useEffect(() => {
+    const fetchOrders = async () => {
+      if (!currentUser) return;
+      try {
+        const orders = await api.orders.getForBuyer();
+        setPurchaseOrders(orders);
+      } catch (error) {
+        console.error('Failed to fetch orders:', error);
+      }
+    };
+    fetchOrders();
+  }, [currentUser]);
+
+  const refreshOrders = async () => {
+    try {
+      const orders = await api.orders.getForBuyer();
+      setPurchaseOrders(orders);
+    } catch (error) {
+      console.error('Failed to refresh orders:', error);
+    }
+  };
+
+  const handlePurchaseRequest = (listing: any) => {
+    if (!currentUser?.verified) {
+      toast.error(t.unverifiedError);
+      return;
+    }
+    setSelectedListing(listing);
+    setPurchaseDialogOpen(true);
+  };
 
   const handleRequestChange = (field: keyof typeof requestForm, value: string) => {
     setRequestForm((prev) => ({ ...prev, [field]: value }));
@@ -429,7 +484,7 @@ export default function BuyerDashboard() {
         </Button>
 
         {/* Available Transporters */}
-        <div>
+        <div id="find-transport">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold">{t.availableTransporters}</h3>
             <Badge variant="secondary">{transporters.length} available</Badge>
@@ -604,89 +659,109 @@ export default function BuyerDashboard() {
         <div>
           <h3 className="text-xl font-bold mb-4">{t.myRequests}</h3>
           {deliveryRequests.length > 0 ? (
-            <div className="space-y-3">
-              {deliveryRequests.map((request) => (
-                <Card key={request.id} className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-semibold">{request.cargoType}</h4>
-                          <Badge
-                            variant="outline"
-                            className={`${getStatusColor(request.status)} text-xs capitalize`}
-                          >
-                            {getStatusIcon(request.status)}
-                            <span className="ml-1">{getStatusLabel(request.status)}</span>
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Transporter: {request.transporterName || 'N/A'}
-                        </p>
-                      </div>
-                      <span className="text-lg font-bold text-primary">
-                        {request.priceOffer?.toLocaleString() ?? "—"} ETB
-                      </span>
-                    </div>
-
-                    {/* Route Info */}
-                    <div className="space-y-2 bg-muted/30 p-3 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">Pickup</p>
-                          <p className="text-sm font-medium">{request.pickupLocation}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Navigation className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">Destination</p>
-                          <p className="text-sm font-medium">{request.destination}</p>
-                        </div>
-                      </div>
-                      {request.weightValue && (
-                        <div className="flex items-start gap-2">
-                          <Package className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                          <div className="flex-1">
-                            <p className="text-xs text-muted-foreground">Weight</p>
-                            <p className="text-sm font-medium">
-                              {request.weightValue}{request.weightUnit || ''}
-                            </p>
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Cargo</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Route</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Transporter</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Weight</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {deliveryRequests.map((request) => (
+                      <tr key={request.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium">{request.cargoType}</p>
+                            {request.preferredTime && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                <Clock className="h-3 w-3" />
+                                {formatPreferredTime(request.preferredTime)}
+                              </p>
+                            )}
                           </div>
-                        </div>
-                      )}
-                      {request.preferredTime && (
-                        <div className="flex items-start gap-2">
-                          <Clock className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                          <div className="flex-1">
-                            <p className="text-xs text-muted-foreground">Preferred Time</p>
-                            <p className="text-sm font-medium">{formatPreferredTime(request.preferredTime)}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1 text-xs">
+                              <MapPin className="h-3 w-3 text-primary" />
+                              <span className="text-muted-foreground">From:</span>
+                              <span>{request.pickupLocation}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs">
+                              <Navigation className="h-3 w-3 text-primary" />
+                              <span className="text-muted-foreground">To:</span>
+                              <span>{request.destination}</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Rejection Reason */}
-                    {request.status === 'rejected' && request.rejectReason && (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                        <p className="text-xs font-semibold text-red-900 mb-1">{t.rejectionReason}:</p>
-                        <p className="text-sm text-red-800">{request.rejectReason}</p>
-                      </div>
-                    )}
-
-                    {/* Contact Button */}
-                    {(request.status === 'accepted' || request.status === 'in-transit') && (
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="icon" className="h-11 w-11">
-                          <Phone className="h-5 w-5" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{request.transporterName || 'N/A'}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          {request.weightValue ? (
+                            <span>{request.weightValue}{request.weightUnit || ''}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-primary font-semibold">
+                          {request.priceOffer?.toLocaleString() ?? "—"} ETB
+                        </td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <Badge
+                              variant="outline"
+                              className={`${getStatusColor(request.status)} text-xs capitalize`}
+                            >
+                              {getStatusIcon(request.status)}
+                              <span className="ml-1">{getStatusLabel(request.status)}</span>
+                            </Badge>
+                            {request.status === 'rejected' && request.rejectReason && (
+                              <p className="text-xs text-red-600 mt-1 italic">"{request.rejectReason}"</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            {(request.status === 'accepted' || request.status === 'in-transit') && (
+                              <>
+                                <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                                  <Phone className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="h-8 relative"
+                                  onClick={() => {
+                                    setSelectedDeliveryRequestId(request.id);
+                                    setDeliveryChatDialogOpen(true);
+                                  }}
+                                >
+                                  <MessageSquare className="h-3 w-3 mr-1" />
+                                  Chat
+                                  {request.unreadCount && request.unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
+                                      {request.unreadCount}
+                                    </span>
+                                  )}
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           ) : (
             <Card className="p-8 text-center">
               <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
@@ -695,7 +770,124 @@ export default function BuyerDashboard() {
             </Card>
           )}
         </div>
-
+        {/* My Purchase Orders */}
+        <div id="my-orders">
+          <h3 className="text-xl font-bold mb-4">{t.myOrders}</h3>
+          {purchaseOrders.length > 0 ? (
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Seller</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Quantity</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {purchaseOrders.map((order) => (
+                      <tr key={order.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium">{order.cropName}</p>
+                            {order.buyerMessage && (
+                              <p className="text-xs text-muted-foreground italic mt-1">"{order.buyerMessage}"</p>
+                            )}
+                            {order.farmerResponse && (
+                              <div className="text-xs text-green-600 mt-1">
+                                <p className="font-semibold">Farmer: "{order.farmerResponse}"</p>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium">{order.sellerName}</p>
+                            <p className="text-xs text-muted-foreground">{order.sellerPhone}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <p>{order.requestedQuantity} {order.unit}</p>
+                            {order.availableQuantity && (
+                              <p className="text-xs text-green-600">Available: {order.availableQuantity}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-primary font-semibold">
+                          {order.offeredPrice} ETB/{order.unit}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <Badge
+                              variant={
+                                order.status === 'completed' ? 'default' :
+                                order.status === 'accepted' ? 'secondary' :
+                                order.status === 'rejected' ? 'destructive' :
+                                'outline'
+                              }
+                              className="capitalize text-xs"
+                            >
+                              {order.status}
+                            </Badge>
+                            {order.paymentScreenshotUrl && (
+                              <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Payment Uploaded
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2 flex-wrap">
+                            {order.status === 'accepted' && !order.paymentScreenshotUrl && (
+                              <Button 
+                                size="sm" 
+                                className="h-8"
+                                onClick={() => {
+                                  setSelectedOrderId(order.id);
+                                  setPaymentDialogOpen(true);
+                                }}
+                              >
+                                Upload Payment
+                              </Button>
+                            )}
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="h-8 relative"
+                              onClick={() => {
+                                setSelectedOrderId(order.id);
+                                setChatDialogOpen(true);
+                              }}
+                            >
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              Chat
+                              {order.unreadCount && order.unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
+                                  {order.unreadCount}
+                                </span>
+                              )}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          ) : (
+            <Card className="p-8 text-center">
+              <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <h4 className="font-semibold mb-2">{t.noOrders}</h4>
+              <p className="text-sm text-muted-foreground">{t.noOrdersSubtitle}</p>
+            </Card>
+          )}
+        </div>
         {/* Price Trends */}
         <div>
           <h3 className="text-xl font-bold mb-4">{t.marketTitle}</h3>
@@ -737,126 +929,139 @@ export default function BuyerDashboard() {
 
           {filteredListings.length > 0 ? (
             <div className="space-y-6">
-              <div className="rounded-xl border border-border bg-card/70 p-4">
-                <div className="flex items-center justify-between mb-3">
+              {/* Admin Products Table */}
+              <div className="rounded-xl border border-border bg-card/70 overflow-hidden">
+                <div className="flex items-center justify-between p-4 border-b">
                   <div>
                     <h4 className="text-lg font-semibold">Admin Products</h4>
                     <p className="text-xs text-muted-foreground">Major products with official price per kg</p>
                   </div>
                   <Badge variant="secondary">{adminListings.length} items</Badge>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                  {adminListings.map((listing) => (
-                    <Card key={listing.id} className="p-2">
-                      <div className="flex gap-2">
-                        <div className="h-16 w-16 flex-shrink-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center overflow-hidden">
-                          {listing.imageUrl ? (
-                            <img
-                              src={listing.imageUrl}
-                              alt={listing.cropName}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Package className="h-8 w-8 text-primary" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <h4 className="font-semibold text-xs">{listing.cropName}</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 border-b">
+                      <tr>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {adminListings.map((listing) => (
+                        <tr key={listing.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="h-12 w-12 flex-shrink-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center overflow-hidden">
+                                {listing.imageUrl ? (
+                                  <img
+                                    src={listing.imageUrl}
+                                    alt={listing.cropName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="h-6 w-6 text-primary" />
+                                )}
+                              </div>
+                              <span className="font-medium">{listing.cropName}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-primary font-semibold">
+                            {listing.pricePerUnit} ETB/{listing.unit}
+                          </td>
+                          <td className="px-4 py-3">
                             {listing.farmerVerified && (
-                              <Badge variant="secondary" className="text-[10px]">
+                              <Badge variant="secondary" className="text-xs">
                                 <CheckCircle2 className="h-3 w-3 mr-1" />
                                 Verified
                               </Badge>
                             )}
-                          </div>
-                          <p className="text-xs font-bold text-primary">
-                            {listing.pricePerUnit} ETB/{listing.unit}
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border bg-card/70 p-4">
-                <div className="flex items-center justify-between mb-3">
+              {/* Farmer Products Table */}
+              <div className="rounded-xl border border-border bg-card/70 overflow-hidden">
+                <div className="flex items-center justify-between p-4 border-b">
                   <div>
                     <h4 className="text-lg font-semibold">Farmer Products</h4>
                     <p className="text-xs text-muted-foreground">Contact farmers directly for availability</p>
                   </div>
                   <Badge variant="secondary">{farmerListings.length} items</Badge>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                  {farmerListings.map((listing) => (
-                    <Card key={listing.id} className="p-2">
-                      <div className="flex gap-2">
-                        <div className="h-20 w-20 flex-shrink-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center overflow-hidden">
-                          {listing.imageUrl ? (
-                            <img
-                              src={listing.imageUrl}
-                              alt={listing.cropName}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Package className="h-10 w-10 text-primary" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <h4 className="font-semibold text-xs">{listing.cropName}</h4>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <Heart className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="space-y-1">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 border-b">
+                      <tr>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Farmer</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Quantity</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Price</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Location</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {farmerListings.map((listing) => (
+                        <tr key={listing.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="h-12 w-12 flex-shrink-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center overflow-hidden">
+                                {listing.imageUrl ? (
+                                  <img
+                                    src={listing.imageUrl}
+                                    alt={listing.cropName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="h-6 w-6 text-primary" />
+                                )}
+                              </div>
+                              <span className="font-medium">{listing.cropName}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-muted-foreground">{listing.farmerName}</span>
+                                <span className="text-sm">{listing.farmerName}</span>
                                 {listing.farmerVerified && (
-                                  <Badge variant="secondary" className="text-[10px]">
+                                  <Badge variant="secondary" className="text-xs">
                                     <CheckCircle2 className="h-3 w-3 mr-1" />
                                     Verified
                                   </Badge>
                                 )}
                               </div>
-
-                              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Phone className="h-2.5 w-2.5" />
-                                  {listing.farmerPhone || 'Phone not provided'}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="h-2.5 w-2.5" />
-                                  {listing.location}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <div className="text-[10px] text-muted-foreground">
-                                  {listing.quantity} {listing.unit} available
-                                </div>
-                                <span className="text-xs font-bold text-primary">
-                                  {listing.pricePerUnit} ETB/{listing.unit}
-                                </span>
-                              </div>
+                              <p className="text-xs text-muted-foreground">{listing.farmerPhone || 'Phone not provided'}</p>
                             </div>
-
-                            <div className="flex flex-col items-end gap-1">
-                              <Button size="sm" variant="outline" className="h-5 w-5 p-0" aria-label={t.call}>
+                          </td>
+                          <td className="px-4 py-3">{listing.quantity} {listing.unit}</td>
+                          <td className="px-4 py-3 text-primary font-semibold">
+                            {listing.pricePerUnit} ETB/{listing.unit}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{listing.location}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                className="h-8"
+                                onClick={() => handlePurchaseRequest(listing)}
+                              >
+                                <ShoppingCart className="h-3 w-3 mr-1" />
+                                Request
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-8 w-8 p-0" aria-label={t.call}>
                                 <Phone className="h-3 w-3" />
                               </Button>
-                              <Button size="sm" className="h-5 w-5 p-0" aria-label={t.message}>
-                                <MessageSquare className="h-3 w-3" />
-                              </Button>
                             </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -880,6 +1085,61 @@ export default function BuyerDashboard() {
           </div>
         )}
       </div>
+
+      {/* Purchase Request Dialog */}
+      {selectedListing && (
+        <PurchaseRequestDialog
+          open={purchaseDialogOpen}
+          onOpenChange={setPurchaseDialogOpen}
+          listing={selectedListing}
+          onSuccess={() => {
+            toast.success("Purchase request sent!");
+            refreshOrders();
+          }}
+        />
+      )}
+
+      {/* Payment Upload Dialog */}
+      {selectedOrderId && (
+        <PaymentUploadDialog
+          open={paymentDialogOpen}
+          onOpenChange={setPaymentDialogOpen}
+          orderId={selectedOrderId}
+          onSuccess={() => {
+            refreshOrders();
+          }}
+        />
+      )}
+
+      {/* Order Chat Dialog */}
+      {selectedOrderId && (
+        <OrderChatDialog
+          open={chatDialogOpen}
+          onOpenChange={setChatDialogOpen}
+          orderId={selectedOrderId}
+          currentUserId={currentUser?.id || 0}
+          orderDetails={{
+            cropName: purchaseOrders.find(o => o.id === selectedOrderId)?.cropName || '',
+            buyerName: currentUser?.fullName || 'You',
+            sellerName: purchaseOrders.find(o => o.id === selectedOrderId)?.sellerName || 'Farmer',
+          }}
+        />
+      )}
+
+      {/* Delivery Chat Dialog */}
+      {selectedDeliveryRequestId && (
+        <DeliveryChatDialog
+          open={deliveryChatDialogOpen}
+          onOpenChange={setDeliveryChatDialogOpen}
+          deliveryRequestId={selectedDeliveryRequestId}
+          currentUserId={currentUser?.id || 0}
+          deliveryDetails={{
+            cargoType: deliveryRequests.find(r => r.id === selectedDeliveryRequestId)?.cargoType || '',
+            buyerName: currentUser?.fullName || 'You',
+            transporterName: deliveryRequests.find(r => r.id === selectedDeliveryRequestId)?.transporterName || 'Transporter',
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }
