@@ -15,4 +15,5 @@ public interface UserService {
     UserResponse updateAvailability(Long userId, boolean available);
     void deleteUser(Long userId);
     java.util.List<TransporterPublicResponse> getVerifiedTransporters();
+    long countPendingVerifications();
 }

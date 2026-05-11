@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -37,6 +38,12 @@ public class UserController {
         }
         
         return userService.getAll();
+    }
+
+    @GetMapping("/pending-count")
+    public Map<String, Long> getPendingVerificationCount() {
+        long count = userService.countPendingVerifications();
+        return Map.of("count", count);
     }
 
     @GetMapping("/transporters/public")

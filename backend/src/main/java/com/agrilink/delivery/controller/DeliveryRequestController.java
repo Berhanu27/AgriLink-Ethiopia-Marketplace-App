@@ -3,6 +3,8 @@ package com.agrilink.delivery.controller;
 import com.agrilink.delivery.dto.CreateDeliveryRequest;
 import com.agrilink.delivery.dto.DeliveryRequestResponse;
 import com.agrilink.delivery.dto.UpdateDeliveryStatusRequest;
+import com.agrilink.delivery.dto.DeliveryMessageRequest;
+import com.agrilink.delivery.dto.DeliveryMessageResponse;
 import com.agrilink.delivery.service.DeliveryRequestService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -55,6 +57,47 @@ public class DeliveryRequestController {
                                                 Authentication authentication) {
         Long transporterId = getUserId(authentication);
         return deliveryRequestService.updateStatus(transporterId, id, request);
+    }
+
+    // Messaging endpoints
+    @PostMapping("/{id}/messages")
+    @ResponseStatus(HttpStatus.CREATED)
+    public DeliveryMessageResponse sendMessage(@PathVariable Long id,
+                                               @Valid @RequestBody DeliveryMessageRequest request,
+                                               Authentication authentication) {
+        Long senderId = getUserId(authentication);
+        return deliveryRequestService.sendMessage(id, senderId, request);
+    }
+
+    @GetMapping("/{id}/messages")
+    public List<DeliveryMessageResponse> getMessages(@PathVariable Long id,
+                                                     Authentication authentication) {
+        Long userId = getUserId(authentication);
+        return deliveryRequestService.getMessages(id, userId);
+    }
+
+    @PostMapping("/{id}/messages/mark-read")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void markMessagesAsRead(@PathVariable Long id,
+                                   Authentication authentication) {
+        Long userId = getUserId(authentication);
+        deliveryRequestService.markMessagesAsRead(id, userId);
+    }
+
+    @PutMapping("/messages/{messageId}")
+    public DeliveryMessageResponse updateMessage(@PathVariable Long messageId,
+                                                 @Valid @RequestBody DeliveryMessageRequest request,
+                                                 Authentication authentication) {
+        Long userId = getUserId(authentication);
+        return deliveryRequestService.updateMessage(messageId, userId, request);
+    }
+
+    @DeleteMapping("/messages/{messageId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteMessage(@PathVariable Long messageId,
+                             Authentication authentication) {
+        Long userId = getUserId(authentication);
+        deliveryRequestService.deleteMessage(messageId, userId);
     }
 
     private Long getUserId(Authentication authentication) {

@@ -1,5 +1,6 @@
 package com.agrilink.user.service;
 
+import com.agrilink.email.service.EmailNotificationService;
 import com.agrilink.user.dto.CreateUserRequest;
 import com.agrilink.user.dto.TransporterPublicResponse;
 import com.agrilink.user.dto.UserResponse;
@@ -16,9 +17,12 @@ import java.util.Objects;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final EmailNotificationService emailNotificationService;
 
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository, 
+                          EmailNotificationService emailNotificationService) {
         this.userRepository = userRepository;
+        this.emailNotificationService = emailNotificationService;
     }
 
     @Override
@@ -80,7 +84,8 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(safeUserId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        System.out.println("[UserService] Current status before update: " + user.getVerificationStatus());
+        String oldStatus = user.getVerificationStatus();
+        System.out.println("[UserService] Current status before update: " + oldStatus);
         user.setVerificationStatus(verificationStatus);
         System.out.println("[UserService] Status after set: " + user.getVerificationStatus());
         
@@ -92,6 +97,15 @@ public class UserServiceImpl implements UserService {
         User verified = userRepository.findById(safeUserId).orElse(null);
         if (verified != null) {
             System.out.println("[UserService] Verified from DB: " + verified.getVerificationStatus());
+        }
+
+        // Send email notification if status changed to verified or rejected
+        if (!verificationStatus.equals(oldStatus)) {
+            try {
+                emailNotificationService.notifyVerificationStatusChange(saved, verificationStatus);
+            } catch (Exception e) {
+                System.err.println("[UserService] Failed to send email notification: " + e.getMessage());
+            }
         }
 
         return new UserResponse(
@@ -216,5 +230,11 @@ public class UserServiceImpl implements UserService {
                     user.getVehicleImageUrl()
                 ))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countPendingVerifications() {
+        return userRepository.countByVerificationStatus("unverified");
     }
 }

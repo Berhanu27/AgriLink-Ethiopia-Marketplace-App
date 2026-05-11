@@ -80,4 +80,11 @@ public class BroadcastServiceImpl implements BroadcastService {
                 msg.getCreatedAt()
         );
     }
+
+    @Override
+    public void delete(Long broadcastId) {
+        BroadcastMessage message = broadcastRepository.findById(broadcastId)
+                .orElseThrow(() -> new IllegalArgumentException("Broadcast not found"));
+        broadcastRepository.delete(message);
+    }
 }

@@ -44,4 +44,15 @@ public class BroadcastController {
         }
         return broadcastService.update(id, request);
     }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(
+            @PathVariable Long id,
+            Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+        }
+        broadcastService.delete(id);
+    }
 }

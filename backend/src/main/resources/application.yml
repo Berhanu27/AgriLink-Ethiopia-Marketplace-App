@@ -16,6 +16,21 @@ spring:
     locations: classpath:db/migration
     validate-on-migrate: false
     out-of-order: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: "berhanumulu2022@gmail.com"
+    password: "wohnyeemwaqkuhtz"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 server:
   port: 8080
@@ -24,3 +39,6 @@ security:
   jwt:
     secret: "dGhpc2lzYXZlcnlzZWN1cmVzZWNyZXRrZXlmb3JhZ3JpbGlua2V0aGlvcGlhbWFya2V0cGxhY2VhcHBsaWNhdGlvbjEyMzQ1Ng=="
     expiration-ms: 3600000 # 60 minutes
+
+email:
+  enabled: true

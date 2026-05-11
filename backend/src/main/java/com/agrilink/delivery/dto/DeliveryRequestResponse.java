@@ -20,6 +20,7 @@ public record DeliveryRequestResponse(
         String notes,
         String status,
         String rejectReason,
-        Instant createdAt
+        Instant createdAt,
+        Long unreadCount
 ) {
 }

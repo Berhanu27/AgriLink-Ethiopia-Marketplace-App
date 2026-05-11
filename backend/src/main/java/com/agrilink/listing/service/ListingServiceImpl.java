@@ -54,6 +54,27 @@ public class ListingServiceImpl implements ListingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ListingResponse> getBySellerId(Long sellerId) {
+        return listingRepository.findBySellerId(sellerId).stream()
+                .map(l -> new ListingResponse(
+                        l.getId(),
+                        l.getSeller() != null ? l.getSeller().getId() : null,
+                        l.getSeller() != null ? l.getSeller().getFullName() : null,
+                        l.getSeller() != null ? l.getSeller().getPhone() : null,
+                        l.getSeller() != null ? l.getSeller().getRegion() : null,
+                        l.getCrop() != null ? l.getCrop().getId() : null,
+                        l.getCrop() != null ? l.getCrop().getCropName() : null,
+                        l.getAskingPrice(),
+                        l.getImageUrl(),
+                        l.getQuantity(),
+                        l.getUnit(),
+                        l.getLocation(),
+                        l.getDescription()))
+                .toList();
+    }
+
+    @Override
     public ListingResponse create(CreateListingRequest request) {
         User seller = userRepository.findById(request.sellerId())
                 .orElseThrow(() -> new IllegalArgumentException("Seller not found: " + request.sellerId()));
@@ -166,5 +187,17 @@ public class ListingServiceImpl implements ListingService {
                                 saved.getLocation(),
                                 saved.getDescription()
                 );
+        }
+
+        @Override
+        public void delete(Long listingId, Long userId) {
+                ProduceListing listing = listingRepository.findById(listingId)
+                                .orElseThrow(() -> new IllegalArgumentException("Listing not found"));
+
+                if (listing.getSeller() == null || !listing.getSeller().getId().equals(userId)) {
+                        throw new AccessDeniedException("You can only delete your own listings");
+                }
+
+                listingRepository.delete(listing);
         }
 }

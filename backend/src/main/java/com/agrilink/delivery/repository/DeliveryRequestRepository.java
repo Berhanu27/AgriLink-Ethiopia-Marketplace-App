@@ -8,4 +8,5 @@ import java.util.List;
 public interface DeliveryRequestRepository extends JpaRepository<DeliveryRequest, Long> {
     List<DeliveryRequest> findByBuyerIdOrderByCreatedAtDesc(Long buyerId);
     List<DeliveryRequest> findByTransporterIdOrderByCreatedAtDesc(Long transporterId);
+    long countByStatus(String status);
 }

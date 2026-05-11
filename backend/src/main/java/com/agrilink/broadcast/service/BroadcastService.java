@@ -10,4 +10,5 @@ public interface BroadcastService {
     List<BroadcastResponse> listAll();
     BroadcastResponse create(CreateBroadcastRequest request);
     BroadcastResponse update(Long broadcastId, UpdateBroadcastRequest request);
+    void delete(Long broadcastId);
 }

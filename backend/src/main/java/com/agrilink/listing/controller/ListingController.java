@@ -24,7 +24,10 @@ public class ListingController {
     }
 
     @GetMapping
-    public List<ListingResponse> list() {
+    public List<ListingResponse> list(@RequestParam(required = false) Long sellerId) {
+        if (sellerId != null) {
+            return listingService.getBySellerId(sellerId);
+        }
         return listingService.getAll();
     }
 
@@ -51,5 +54,24 @@ public class ListingController {
         }
 
         return listingService.update(id, request, userId);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(
+            @PathVariable Long id,
+            Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+        }
+
+        Long userId;
+        try {
+            userId = Long.parseLong(authentication.getName());
+        } catch (NumberFormatException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid user id");
+        }
+
+        listingService.delete(id, userId);
     }
 }

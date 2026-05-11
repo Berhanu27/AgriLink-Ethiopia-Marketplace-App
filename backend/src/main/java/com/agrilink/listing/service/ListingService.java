@@ -8,6 +8,8 @@ import java.util.List;
 
 public interface ListingService {
     List<ListingResponse> getAll();
+    List<ListingResponse> getBySellerId(Long sellerId);
     ListingResponse create(CreateListingRequest request);
     ListingResponse update(Long listingId, UpdateListingRequest request, Long userId);
+    void delete(Long listingId, Long userId);
 }
