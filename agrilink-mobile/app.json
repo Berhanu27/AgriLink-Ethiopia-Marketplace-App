@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "AgriLink",
+    "slug": "agrilink-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#16a34a"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#16a34a"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "minSdkVersion": 26,
+      "targetSdkVersion": 33,
+      "package": "com.agrilink.mobile"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow AgriLink to access your photos.",
+          "cameraPermission": "Allow AgriLink to access your camera."
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://192.168.137.93:8080/api",
+      "cloudinaryCloudName": "dnnmkd1ob",
+      "cloudinaryUploadPreset": "agrilink_broadcast"
+    }
+  }
+}
