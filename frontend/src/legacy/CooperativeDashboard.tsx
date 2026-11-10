@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import OrderChatDialog from "@/components/OrderChatDialog";
+import { toast } from "sonner";
 import {
   Users,
   Plus,
@@ -99,18 +100,31 @@ export default function CooperativeDashboard() {
     description: '',
   });
   const [chatOrder, setChatOrder] = useState<any | null>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+  const [savingMember, setSavingMember] = useState(false);
+  const [memberForm, setMemberForm] = useState({
+    fullName: '',
+    phone: '',
+    cropName: '',
+    quantity: '',
+    unit: 'kg',
+    pricePerUnit: '',
+  });
 
   useEffect(() => {
     const fetchData = async () => {
       if (!currentUser?.id) return;
       
       try {
-        const [listingsData, ordersData] = await Promise.all([
+        const [listingsData, ordersData, membersData] = await Promise.all([
           api.listings.getForSeller(currentUser.id),
           api.orders.getForSeller(),
+          api.cooperative.getMembers(),
         ]);
         setBackendListings(listingsData);
         setOrders(ordersData);
+        setMembers(membersData);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -180,8 +194,80 @@ export default function CooperativeDashboard() {
     }
   };
 
-  // Mock data for cooperative
-  const memberCount = currentUser?.memberCount || 45;
+  const refreshMembersAndListings = async () => {
+    if (!currentUser?.id) return;
+    const [membersData, listingsData] = await Promise.all([
+      api.cooperative.getMembers(),
+      api.listings.getForSeller(currentUser.id),
+    ]);
+    setMembers(membersData);
+    setBackendListings(listingsData);
+  };
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const quantity = parseFloat(memberForm.quantity);
+    const pricePerUnit = parseFloat(memberForm.pricePerUnit);
+    if (!currentUser?.id) return;
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      toast.error('Enter a quantity greater than 0');
+      return;
+    }
+    if (!Number.isFinite(pricePerUnit) || pricePerUnit < 0) {
+      toast.error('Enter a valid price per unit');
+      return;
+    }
+
+    setSavingMember(true);
+    try {
+      await api.cooperative.addMember({
+        fullName: memberForm.fullName.trim(),
+        phone: memberForm.phone.trim(),
+        cropName: memberForm.cropName.trim(),
+        quantity,
+        unit: memberForm.unit,
+        pricePerUnit,
+      });
+      await refreshMembersAndListings();
+      setMemberForm({ fullName: '', phone: '', cropName: '', quantity: '', unit: 'kg', pricePerUnit: '' });
+      toast.success('Member added and pooled into the bulk listing');
+    } catch (error) {
+      console.error('Failed to add member:', error);
+      toast.error(error instanceof ApiError ? error.message : 'Failed to add member');
+    } finally {
+      setSavingMember(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: number) => {
+    if (!confirm('Remove this member contribution? The bulk listing will be updated.')) return;
+
+    try {
+      await api.cooperative.removeMember(memberId);
+      await refreshMembersAndListings();
+      toast.success('Member removed and bulk listing updated');
+    } catch (error) {
+      console.error('Failed to remove member:', error);
+      toast.error(error instanceof ApiError ? error.message : 'Failed to remove member');
+    }
+  };
+
+  const formatNumber = (value: number) =>
+    Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+  const memberCount = members.length > 0 ? members.length : (currentUser?.memberCount || 0);
+  const topContributors = [...members]
+    .sort((a, b) =>
+      Number(b.quantity) * Number(b.pricePerUnit) - Number(a.quantity) * Number(a.pricePerUnit)
+    )
+    .slice(0, 5)
+    .map((member) => ({
+      name: member.fullName,
+      contribution: `${formatNumber(Number(member.quantity))} ${member.unit} ${member.cropName}`,
+      value: `${formatNumber(Number(member.quantity) * Number(member.pricePerUnit))} ETB`,
+    }));
+
   const coopListings = backendListings.length > 0 ? backendListings : listings.filter((l) => l.farmerId === currentUser?.id);
   const activeListings = coopListings.filter((l) => l.status === 'active').length;
   const totalRevenue = 125000; // Mock revenue
@@ -248,7 +334,11 @@ export default function CooperativeDashboard() {
               {t.createBulk}
             </Button>
           </Link>
-          <Button variant="outline" className="w-full min-h-[56px]">
+          <Button
+            variant="outline"
+            className="w-full min-h-[56px]"
+            onClick={() => setMemberDialogOpen(true)}
+          >
             <UserPlus className="h-5 w-5 mr-2" />
             {t.manageMembers}
           </Button>
@@ -256,28 +346,50 @@ export default function CooperativeDashboard() {
 
         {/* Member Contributions */}
         <div id="top-contributors">
-          <h3 className="text-xl font-bold mb-4">{t.topContributors}</h3>
-          <Card className="p-4">
-            <div className="space-y-3">
-              {[
-                { name: 'Abebe Tesfa', contribution: '1,200 kg', value: '45,000 ETB' },
-                { name: 'Almaz Girma', contribution: '850 kg', value: '32,000 ETB' },
-                { name: 'Dawit Mulugeta', contribution: '650 kg', value: '24,500 ETB' },
-              ].map((member, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary font-semibold">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <p className="font-medium">{member.name}</p>
-                      <p className="text-sm text-muted-foreground">{member.contribution}</p>
-                    </div>
-                  </div>
-                  <span className="font-semibold text-primary">{member.value}</span>
-                </div>
-              ))}
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold">{t.topContributors}</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMemberDialogOpen(true)}
+            >
+              <UserPlus className="h-4 w-4 mr-1" />
+              {t.manageMembers}
+            </Button>
+          </div>
+          <Card className="overflow-hidden">
+            {topContributors.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground w-12">#</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Member Name</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Contribution</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Total Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {topContributors.map((member, index) => (
+                      <tr key={`${member.name}-${index}`} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 font-medium text-muted-foreground">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                            {index + 1}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-semibold">{member.name}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{member.contribution}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-primary">{member.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No member contributions yet. Add members to start pooling produce.
+              </p>
+            )}
           </Card>
         </div>
 
@@ -634,6 +746,157 @@ export default function CooperativeDashboard() {
           }}
         />
       )}
+
+      {/* Manage Members Dialog */}
+      <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t.manageMembers}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Each contribution is pooled by crop and unit into one bulk listing owned by your cooperative.
+            </p>
+
+            {members.length > 0 ? (
+              <div className="border rounded-md overflow-hidden max-h-60 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b sticky top-0 bg-background">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground">Member</th>
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground">Crop</th>
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground">Quantity</th>
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground">Price/Unit</th>
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {members.map((member) => (
+                      <tr key={member.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-3 py-2">
+                          <p className="font-medium leading-none">{member.fullName}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{member.phone}</p>
+                        </td>
+                        <td className="px-3 py-2 font-medium">{member.cropName}</td>
+                        <td className="px-3 py-2">{formatNumber(Number(member.quantity))} {member.unit}</td>
+                        <td className="px-3 py-2 font-semibold text-primary">{formatNumber(Number(member.pricePerUnit))} ETB</td>
+                        <td className="px-3 py-2 text-right">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRemoveMember(member.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Remove
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4 border rounded-md">
+                No members yet. Add the first member below.
+              </p>
+            )}
+          </div>
+
+          <form onSubmit={handleAddMember} className="space-y-3 border-t pt-4">
+            <h4 className="font-semibold">Add Member Contribution</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="memberName">Full Name</Label>
+                <Input
+                  id="memberName"
+                  value={memberForm.fullName}
+                  onChange={(e) => setMemberForm({ ...memberForm, fullName: e.target.value })}
+                  placeholder="e.g. Abebe Tesfa"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="memberPhone">Phone</Label>
+                <Input
+                  id="memberPhone"
+                  type="tel"
+                  value={memberForm.phone}
+                  onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
+                  placeholder="+251911234567"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="memberCrop">Crop</Label>
+              <Input
+                id="memberCrop"
+                value={memberForm.cropName}
+                onChange={(e) => setMemberForm({ ...memberForm, cropName: e.target.value })}
+                placeholder="e.g. Maize"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label htmlFor="memberQuantity">Quantity</Label>
+                <Input
+                  id="memberQuantity"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={memberForm.quantity}
+                  onChange={(e) => setMemberForm({ ...memberForm, quantity: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="memberUnit">Unit</Label>
+                <select
+                  id="memberUnit"
+                  value={memberForm.unit}
+                  onChange={(e) => setMemberForm({ ...memberForm, unit: e.target.value })}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                >
+                  <option value="kg">kg</option>
+                  <option value="quintal">quintal</option>
+                  <option value="ton">ton</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="memberPrice">Price/Unit</Label>
+                <Input
+                  id="memberPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={memberForm.pricePerUnit}
+                  onChange={(e) => setMemberForm({ ...memberForm, pricePerUnit: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="submit" className="flex-1" disabled={savingMember}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                {savingMember ? 'Adding...' : 'Add Member & Pool'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMemberDialogOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

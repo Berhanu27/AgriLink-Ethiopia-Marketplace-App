@@ -257,6 +257,37 @@ export const api = {
       }),
   },
 
+  // Cooperative member pooling
+  cooperative: {
+    getMembers: () => fetchApi<Array<{
+      id: number;
+      fullName: string;
+      phone: string;
+      cropName: string;
+      quantity: number;
+      unit: string;
+      pricePerUnit: number;
+      createdAt?: string;
+    }>>('/cooperative/members'),
+
+    addMember: (data: {
+      fullName: string;
+      phone: string;
+      cropName: string;
+      quantity: number;
+      unit: string;
+      pricePerUnit: number;
+    }) => fetchApi('/cooperative/members', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+    removeMember: (memberId: number) =>
+      fetchApi<void>(`/cooperative/members/${memberId}`, {
+        method: 'DELETE',
+      }),
+  },
+
   crops: {
     getAll: () => fetchApi<Array<{ id: number; name: string }>>('/crops'),
   },
